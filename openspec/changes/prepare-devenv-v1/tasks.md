@@ -68,10 +68,10 @@
 
 ## 8. Runner module
 
-- [ ] 8.1 Implement `pub fn emit(diff: &EnvDiff, shell: &dyn Shell, out: &mut dyn Write) -> Result<()>`: iterate `diff.iter()`, apply `translate_path`, format via `format_set`, write each line + `\n` to `out`
-- [ ] 8.2 Implement `pub fn spawn_shell(diff: &EnvDiff, base: &HashMap<OsString, OsString>, shell: &dyn Shell) -> Result<i32>`: build merged env (apply `translate_path` per var), spawn `shell.executable()` with `Stdio::inherit()` for stdin/stdout/stderr, wait, return exit code; surface `Error::Spawn` on failure-to-start
-- [ ] 8.3 Implement `pub fn spawn_command(diff: &EnvDiff, base: &HashMap<OsString, OsString>, argv: &[OsString]) -> Result<i32>`: build merged env without per-shell `translate_path`, spawn `argv[0]` with the rest of `argv` and `Stdio::inherit()`, wait, return exit code
-- [ ] 8.4 Decide pwsh fallback in `spawn_shell` when `pwsh.exe` is absent on PATH (try `powershell.exe`); document and test
+- [x] 8.1 Implement `pub fn emit(diff: &EnvDiff, shell: &dyn Shell, out: &mut dyn Write) -> Result<()>`: iterate `diff.iter()`, apply `translate_path`, format via `format_set`, write each line + `\n` to `out`
+- [x] 8.2 Implement `pub fn spawn_shell(diff: &EnvDiff, base: &HashMap<OsString, OsString>, shell: &dyn Shell) -> Result<i32>`: build merged env (apply `translate_path` per var), spawn `shell.executable()` with `Stdio::inherit()` for stdin/stdout/stderr, wait, return exit code; surface `Error::Spawn` on failure-to-start
+- [x] 8.3 Implement `pub fn spawn_command(diff: &EnvDiff, base: &HashMap<OsString, OsString>, argv: &[OsString]) -> Result<i32>`: build merged env without per-shell `translate_path`, spawn `argv[0]` with the rest of `argv` and `Stdio::inherit()`, wait, return exit code
+- [x] 8.4 Decide pwsh fallback in `spawn_shell` when `pwsh.exe` is absent on PATH (try `powershell.exe`); document and test
 - [ ] 8.5 Integration test (under `tests/`) using the `test_hooks` feature + a fake `.bat` to drive `runner::emit` end-to-end for each shell and diff stdout against a committed expected-output fixture
 - [ ] 8.6 Integration test for `runner::spawn_command` using the `test_hooks` feature to launch `cmd /c set` and assert the spawned process sees the diffed vars
 
