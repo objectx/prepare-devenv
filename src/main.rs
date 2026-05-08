@@ -51,7 +51,7 @@ fn run() -> Result<i32> {
         "resolved Visual Studio install"
     );
 
-    let pre = capture::snapshot_pre_env();
+    let pre = capture::snapshot_pre_env()?;
     // Per spec `cli-surface-and-diagnostics / Surface VsDevCmd.bat's stdout
     // only at -v or higher`: forward the captured stderr (where VsDevCmd.bat's
     // own chatter lives via the inner `1>&2`) to the user's stderr only when

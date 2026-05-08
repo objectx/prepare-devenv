@@ -44,14 +44,46 @@ use std::process::Command;
 
 use crate::error::{Error, Result};
 
-/// Snapshot the parent process's environment as an `OsString → OsString` map.
+/// Snapshot the pre-`VsDevCmd.bat` environment as an `OsString → OsString` map.
 ///
-/// Returns `std::env::vars_os().collect()`. Keys preserve the original casing
-/// the parent writer used. Lookup on Windows is conventionally
-/// case-insensitive — the diff module (Task 6) handles that comparison;
-/// the snapshot itself is just a faithful dump.
-pub fn snapshot_pre_env() -> HashMap<OsString, OsString> {
-    std::env::vars_os().collect()
+/// Spawns the same `cmd.exe /U /D /Q /C "echo MARKER && set"` shape that the
+/// post-bat [`capture`] uses, parses the output through [`capture_with`], and
+/// returns the resulting map. Using `cmd.exe`'s `set` (rather than Rust's
+/// `std::env::vars_os()`) is load-bearing: `cmd.exe` synthesizes a handful of
+/// variables that aren't in the parent process env when the parent didn't
+/// inherit them — most notably `PROMPT=$P$G`. If we sampled pre via Rust's env
+/// and post via `cmd.exe`'s `set`, those synthesized vars would appear as
+/// "added" in the diff (false positives observed on the bare GitHub Actions
+/// runner where the parent shell never set `PROMPT`). Sampling both sides via
+/// `cmd.exe` makes them cancel.
+///
+/// The `/D` flag suppresses `AutoRun`, so user `HKCU\...\Command Processor\AutoRun`
+/// hooks don't add or remove env vars between this call and [`capture`].
+pub fn snapshot_pre_env() -> Result<HashMap<OsString, OsString>> {
+    use std::os::windows::process::CommandExt;
+
+    let marker = fresh_marker();
+    let inner = format!("echo {marker} && set");
+    let mut cmd = Command::new("cmd.exe");
+    cmd.arg("/U")
+        .arg("/D")
+        .arg("/Q")
+        .arg("/C")
+        .raw_arg(format!("\"{inner}\""));
+    let argv: Vec<String> = cmd
+        .get_args()
+        .map(|a| a.to_string_lossy().into_owned())
+        .collect();
+    tracing::info!(?argv, marker = %marker, "running cmd /U pre-env snapshot");
+    let output = cmd.output().map_err(|source| Error::Spawn {
+        cmd: "cmd.exe".to_string(),
+        source,
+    })?;
+    if !output.status.success() {
+        let _ = std::io::stderr().write_all(&output.stderr);
+        return Err(Error::EnvParse("cmd.exe failed during pre-env snapshot"));
+    }
+    capture_with(output.stdout.as_slice(), &marker)
 }
 
 /// Generate a fresh per-invocation marker like
@@ -441,7 +473,7 @@ mod tests {
         // Every Windows process has a PATH variable. Lookup is
         // case-insensitive on Windows but our snapshot preserves the writer's
         // casing, so we iterate and match case-insensitively.
-        let env = snapshot_pre_env();
+        let env = snapshot_pre_env().expect("pre-env snapshot must succeed");
         let has_path = env
             .keys()
             .any(|k| k.to_string_lossy().eq_ignore_ascii_case("PATH"));
