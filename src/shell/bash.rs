@@ -186,4 +186,24 @@ mod tests {
         let out = Bash.translate_path(OsStr::new("PATH"), OsStr::new(r"C:\foo;;C:\bar"));
         assert_eq!(out, OsStr::new("/c/foo::/c/bar"));
     }
+
+    #[test]
+    fn translate_path_double_slash_after_drive() {
+        let out = Bash.translate_path(OsStr::new("PATH"), OsStr::new(r"C:\\foo"));
+        // r"C:\\foo" is `C`, `:`, `\`, `\`, `f`, `o`, `o` → matches drive prefix, rest = `\foo` → `/foo`
+        // result: /c//foo
+        assert_eq!(out, OsString::from("/c//foo"));
+    }
+
+    #[test]
+    fn translate_path_drive_with_trailing_separator() {
+        let out = Bash.translate_path(OsStr::new("PATH"), OsStr::new(r"C:\"));
+        assert_eq!(out, OsString::from("/c/"));
+    }
+
+    #[test]
+    fn translate_path_segment_with_tabs() {
+        let out = Bash.translate_path(OsStr::new("PATH"), OsStr::new("C:\\foo\tbar"));
+        assert_eq!(out, OsString::from("/c/foo\tbar"));
+    }
 }

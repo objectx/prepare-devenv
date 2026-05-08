@@ -2,16 +2,14 @@
 //!
 //! Inside fish single-quoted strings only two escapes are recognised: `\\` →
 //! `\` and `\'` → `'`. Other backslashes are taken literally — `'C:\foo'`
-//! parses to the six-byte string `C:\foo` with no further interpretation. We
-//! therefore only need to escape `'` (as `\'`) for the values we expect to
-//! handle (Windows-shape PATH / INCLUDE / etc.).
+//! parses to the six-byte string `C:\foo` with no further interpretation.
 //!
-//! **Known limitation:** a value ending in `\` is unrepresentable here —
-//! `'foo\'` parses as `foo` + `\'` (escaped quote, string still open). The VS
-//! dev env vars we forward never end in a bare backslash in practice; if a
-//! user supplies such a value via `--devcmd-args` and we hand it to the fish
-//! emit path, the result would be ill-formed fish syntax. Documented and
-//! left for a follow-up.
+//! However, a value ending in `\` (such as every VS `*INSTALLDIR` env var,
+//! e.g. `C:\Program Files\…\Community\`) would parse as `…\'` — an escaped
+//! quote, leaving the string unterminated. To handle this safely we escape
+//! backslash and single quote both via prefix-backslash: `\` → `\\` and
+//! `'` → `\'`. Backslash MUST be replaced first so that the backslashes we
+//! add for `'` are not themselves doubled.
 //!
 //! See <https://fishshell.com/docs/current/language.html#quotes>.
 
@@ -32,10 +30,16 @@ impl Shell for Fish {
         OsStr::new("fish.exe")
     }
 
+    /// Emit `set -gx NAME 'value'` with backslash and single-quote escaped.
+    ///
+    /// Escape order is critical: `\` MUST be replaced first (`\` → `\\`) so
+    /// that the backslashes added for `'` (`'` → `\'`) are not re-escaped.
+    /// This mirrors fish's two recognised in-string escapes and keeps values
+    /// with trailing backslashes (VS `*INSTALLDIR`-shape paths) well-formed.
     fn format_set(&self, name: &OsStr, value: &OsStr) -> Result<String> {
         let n = name.to_string_lossy();
         let v = value.to_string_lossy();
-        let escaped = v.replace('\'', r"\'");
+        let escaped = v.replace('\\', r"\\").replace('\'', r"\'");
         Ok(format!("set -gx {n} '{escaped}'"))
     }
 }
@@ -46,12 +50,12 @@ mod tests {
 
     #[test]
     fn format_set_simple() {
-        // Per spec scenario: `INCLUDE` / `C:\foo` round-trips with a single
-        // backslash inside `'…'`. Fish leaves non-escape backslashes literal.
+        // Per spec scenario: `INCLUDE` / `C:\foo` — backslash is doubled so
+        // the value round-trips through fish's `\\` escape.
         let out = Fish
             .format_set(OsStr::new("INCLUDE"), OsStr::new(r"C:\foo"))
             .expect("simple value should format");
-        assert_eq!(out, r"set -gx INCLUDE 'C:\foo'");
+        assert_eq!(out, r"set -gx INCLUDE 'C:\\foo'");
     }
 
     #[test]
@@ -73,12 +77,29 @@ mod tests {
 
     #[test]
     fn format_set_passes_path_chars_through() {
-        // Backslash, semicolon, `$` are all literal inside fish single-quotes
-        // (apart from the two recognised escapes `\\` and `\'`).
+        // Semicolon and `$` pass through literally inside fish single-quotes;
+        // backslashes are doubled so fish's `\\` escape resolves them back.
         let out = Fish
             .format_set(OsStr::new("PATH"), OsStr::new(r"C:\foo;C:\bar"))
             .expect("path chars should pass through");
-        assert_eq!(out, r"set -gx PATH 'C:\foo;C:\bar'");
+        assert_eq!(out, r"set -gx PATH 'C:\\foo;C:\\bar'");
+    }
+
+    #[test]
+    fn format_set_trailing_backslash() {
+        // VS `*INSTALLDIR` env vars all end in `\`; without escaping `\` the
+        // resulting `'…\'` would be parsed as an unterminated string with an
+        // escaped quote. Doubling the backslash keeps the value well-formed.
+        let s = Fish
+            .format_set(
+                OsStr::new("VSINSTALLDIR"),
+                OsStr::new(r"C:\Program Files\Microsoft Visual Studio\2022\Community\"),
+            )
+            .expect("trailing backslash should escape");
+        assert_eq!(
+            s,
+            r"set -gx VSINSTALLDIR 'C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\'"
+        );
     }
 
     #[test]

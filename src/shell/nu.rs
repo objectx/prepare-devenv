@@ -37,9 +37,12 @@ impl Shell for Nu {
         let n = name.to_string_lossy();
         let v = value.to_string_lossy();
         if v.contains('\'') {
-            // Switch to double-quoted form. Escape backslash first (so the
-            // backslashes we add for `"` and `$` aren't re-doubled), then
-            // `"` and `$`.
+            // Switch to double-quoted form and escape the three characters
+            // nushell treats as special inside `"…"`: `\`, `"`, `$`.
+            //
+            // Escape order is critical: backslash MUST be replaced first to
+            // avoid re-escaping the `\\` we add for `"` and `$`. The current
+            // order is `\` → `\\`, then `"` → `\"`, then `$` → `\$`.
             let escaped = v
                 .replace('\\', r"\\")
                 .replace('"', r#"\""#)
