@@ -31,3 +31,26 @@ prepare-devenv --path "C:\Program Files\Microsoft Visual Studio\18" -- bash
 # Same as above but using the instance ID.
 prepare-devenv --id d0b481ec -- bash # With Visual Studio 2026 Insiders.
 ```
+
+## Building from source
+
+`prepare-devenv` is a Rust 2024 Cargo crate. From the repository root:
+
+```pwsh
+cargo build --release
+# -> target\release\prepare-devenv.exe
+```
+
+Run the unit + fixture-driven test suite (works without a Visual Studio install):
+
+```pwsh
+cargo test
+cargo test --features test_hooks    # also covers the end-to-end CLI suite
+```
+
+Run the live tests (require a working Visual Studio install with `vswhere.exe`
+on the standard installer path):
+
+```pwsh
+cargo test --features live
+```

@@ -95,9 +95,9 @@
 
 ## 11. Live tests (live feature)
 
-- [ ] 11.1 Add `tests/live_discover.rs` calling `discovery::resolve(Selector::Latest)` and asserting the returned path exists; gated by `#[cfg(feature = "live")]`
-- [ ] 11.2 Add `tests/live_capture.rs` calling `capture::capture` against the resolved install and asserting `INCLUDE`, `LIB`, `VCINSTALLDIR`, `WindowsSdkDir` are present in the diff; gated by `#[cfg(feature = "live")]`
-- [ ] 11.3 Document in repo `README.md` how to run live tests (`cargo test --features live`) and that they require an installed VS
+- [x] 11.1 Add `tests/live_discover.rs` calling `discovery::resolve(Selector::Latest)` and asserting the returned path exists; gated by `#[cfg(feature = "live")]`
+- [x] 11.2 Add `tests/live_capture.rs` calling `capture::capture` against the resolved install and asserting `INCLUDE`, `LIB`, `VCINSTALLDIR`, `WindowsSdkDir` are present in the diff; gated by `#[cfg(feature = "live")]`
+- [x] 11.3 Document in repo `README.md` how to run live tests (`cargo test --features live`) and that they require an installed VS
 
 ## 12. CI workflow
 
