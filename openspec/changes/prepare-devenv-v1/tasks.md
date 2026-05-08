@@ -45,11 +45,11 @@
 
 ## 6. Diff module
 
-- [ ] 6.1 Define `struct EnvDiff { added: BTreeMap<OsString, OsString>, modified: BTreeMap<OsString, OsString> }` (ordered for stable output)
-- [ ] 6.2 Implement `pub fn diff(pre: &HashMap<OsString, OsString>, post: &HashMap<OsString, OsString>) -> EnvDiff` using case-insensitive name comparison (Windows convention) but preserving original casing of post-keys
-- [ ] 6.3 Implement `EnvDiff::merged_env(&self, base: &HashMap<OsString, OsString>) -> HashMap<OsString, OsString>` for the spawn paths
-- [ ] 6.4 Implement `EnvDiff::iter()` yielding added then modified, each in sorted-key order
-- [ ] 6.5 Unit tests covering added / modified / unchanged / removed-ignored / case-insensitive name match
+- [x] 6.1 Define `struct EnvDiff { added: BTreeMap<OsString, OsString>, modified: BTreeMap<OsString, OsString> }` (ordered for stable output)
+- [x] 6.2 Implement `pub fn diff(pre: &HashMap<OsString, OsString>, post: &HashMap<OsString, OsString>) -> EnvDiff` using case-insensitive name comparison (Windows convention) but preserving original casing of post-keys
+- [x] 6.3 Implement `EnvDiff::merged_env(&self, base: &HashMap<OsString, OsString>) -> HashMap<OsString, OsString>` for the spawn paths
+- [x] 6.4 Implement `EnvDiff::iter()` yielding added then modified, each in sorted-key order
+- [x] 6.5 Unit tests covering added / modified / unchanged / removed-ignored / case-insensitive name match
 
 ## 7. Shell trait & adapters
 
