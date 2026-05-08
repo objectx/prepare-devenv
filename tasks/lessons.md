@@ -63,3 +63,25 @@ Diagnostic tip: when a fixture-compare test fails on CI but not
 locally, run `--log-failed` on the failed `gh run` and look for the
 `left:` and `right:` lines from the panic — Rust's default
 `assert_eq!` does include both sides in the panic message.
+
+## Project WORKFLOW.md overrides the brainstorming skill's default flow
+
+`superpowers:brainstorming` defaults to writing a spec to
+`docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` and then
+handing off to `writing-plans`. This project's `docs/WORKFLOW.md`
+explicitly classifies that as a front-door anti-pattern and routes
+**config value tweaks / bug fixes / linter tweaks / typos / docs**
+to a **direct PR** — no spec, no opsx flow.
+
+So when the user invokes `/superpowers:brainstorming` for a
+small-scope config change (e.g. Cargo.toml profile knobs), the
+verbal design conversation is still valuable, but **do not**:
+- create `docs/superpowers/` or `docs/superpowers/specs/`
+- write a `YYYY-MM-DD-<topic>-design.md`
+- invoke `writing-plans` afterward
+
+Just present the design, get approval, edit the file, verify.
+
+Surfaced by: 2026-05-09 brainstorm of release-binary size knobs —
+I started writing a spec doc for a 6-line Cargo.toml change before
+the user pointed at WORKFLOW.md.
