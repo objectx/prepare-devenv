@@ -38,7 +38,7 @@
 
 use std::collections::HashMap;
 use std::ffi::OsString;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::Path;
 use std::process::Command;
 
@@ -225,17 +225,53 @@ pub fn capture_with(mut reader: impl Read, marker: &str) -> Result<HashMap<OsStr
 ///
 /// Returns `HashMap<OsString, OsString>` directly — see the module-level note
 /// about why we don't wrap this in a `CapturedEnv` newtype.
-pub fn capture(bat: &Path, devcmd_args: Option<&str>) -> Result<HashMap<OsString, OsString>> {
+///
+/// # `forward_stderr_on_success`
+///
+/// Per spec `cli-surface-and-diagnostics / Surface VsDevCmd.bat's stdout only
+/// at -v or higher` and `devenv-environment-capture / VsDevCmd.bat exits
+/// non-zero`, the inner cmd's stderr (which is where the `1>&2` redirect
+/// dumps `VsDevCmd.bat`'s own chatter) must be surfaced to the user's stderr
+/// at `-v` or higher and unconditionally on failure (it is the only diagnostic
+/// the user has when the bat refuses to run).
+///
+/// - On **failure** (non-zero exit), the captured `output.stderr` is ALWAYS
+///   written to `std::io::stderr()` before returning [`Error::VsDevCmdFailed`].
+/// - On **success**, the captured stderr is written to `std::io::stderr()`
+///   only when `forward_stderr_on_success == true` (i.e., when the caller was
+///   invoked with `-v` or higher).
+///
+/// Side-effect note: this function writes directly to `std::io::stderr()` so
+/// no writer plumbing has to thread through the call site. The stream is
+/// always shared with `tracing-subscriber`, which is correct: `-v` users
+/// asked for noise.
+pub fn capture(
+    bat: &Path,
+    devcmd_args: Option<&str>,
+    forward_stderr_on_success: bool,
+) -> Result<HashMap<OsString, OsString>> {
     let marker = fresh_marker();
     let mut cmd = build_capture_command(bat, devcmd_args, &marker);
+    // Trace the constructed cmd /U argv and marker token under `-v`
+    // (info!) per spec `cli-surface-and-diagnostics / -v should include
+    // the constructed cmd /U line, the marker token`.
+    let argv: Vec<String> = cmd
+        .get_args()
+        .map(|a| a.to_string_lossy().into_owned())
+        .collect();
+    tracing::info!(?argv, marker = %marker, "running cmd /U capture");
     let output = cmd.output().map_err(|source| Error::Spawn {
         cmd: "cmd.exe".to_string(),
         source,
     })?;
     // output.stderr holds VsDevCmd.bat's own chatter (via the inner `1>&2`).
-    // Task 9 will surface this under `-v`; for now we discard it.
     if !output.status.success() {
+        // Failure: always forward — it's the only diagnostic the user has.
+        let _ = std::io::stderr().write_all(&output.stderr);
         return Err(Error::VsDevCmdFailed(output.status.code().unwrap_or(-1)));
+    }
+    if forward_stderr_on_success {
+        let _ = std::io::stderr().write_all(&output.stderr);
     }
     capture_with(output.stdout.as_slice(), &marker)
 }

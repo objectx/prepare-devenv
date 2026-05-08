@@ -83,7 +83,7 @@
 - [x] 9.4 `Mode::SpawnShell`: call `runner::spawn_shell`; propagate exit code
 - [x] 9.5 `Mode::RunCommand(argv)`: call `runner::spawn_command`; propagate exit code
 - [x] 9.6 Top-level error handling: convert `Error` → exit code per the documented map (3 for discovery, 4 for `VsDevCmdFailed`, 1 for spawn / IO / EnvParse, 0 for success); print error chain to stderr (no `anyhow` needed at this layer; `std::error::Error::source()` walk is sufficient)
-- [ ] 9.7 Verify stdout is untouched by anything other than `runner::emit` via an integration test that checks `assert_cmd`'s `stdout()` is empty for every non-emit invocation (deferred to Task 10)
+- [x] 9.7 Verify stdout is untouched by anything other than `runner::emit` via an integration test that checks `assert_cmd`'s `stdout()` is empty for every non-emit invocation (delivered as `tests/cli_stdout_clean.rs` under Task 10)
 
 ## 10. End-to-end CLI tests (test_hooks feature)
 

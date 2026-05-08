@@ -224,6 +224,9 @@ fn walk_parent_chain() -> Vec<String> {
         let _ = CloseHandle(snapshot);
 
         // Walk parent chain starting from our own PID.
+        // Per spec `cli-surface-and-diagnostics / -vv should additionally
+        // include each step of the parent-process ancestor walk`: emit a
+        // debug! event per hop with the resolved exe name.
         let mut pid: u32 = std::process::id();
         for _ in 0..MAX_DEPTH {
             let Some((_, parent_pid, _)) = table.iter().find(|row| row.0 == pid).cloned() else {
@@ -236,6 +239,7 @@ fn walk_parent_chain() -> Vec<String> {
             let Some((_, _, name)) = table.iter().find(|row| row.0 == parent_pid).cloned() else {
                 break;
             };
+            tracing::debug!(pid = parent_pid, exe = %name, "walking parent chain");
             chain.push(name);
             pid = parent_pid;
         }

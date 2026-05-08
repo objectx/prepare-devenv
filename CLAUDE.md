@@ -40,4 +40,4 @@ See @docs/WORKFLOW.md
 
 ## Lessons / corrections
 
-Track recurring corrections in `tasks/lessons.md` (per the user's global workflow rules). File doesn't exist yet — create it on the first correction rather than pre-emptively.
+Track recurring corrections in [tasks/lessons.md](tasks/lessons.md) (per the user's global workflow rules). Two captured gotchas live there as of v1.

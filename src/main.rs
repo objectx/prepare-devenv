@@ -52,7 +52,15 @@ fn run() -> Result<i32> {
     );
 
     let pre = capture::snapshot_pre_env();
-    let post = capture::capture(&install.vsdevcmd_path, cli.devcmd_args.as_deref())?;
+    // Per spec `cli-surface-and-diagnostics / Surface VsDevCmd.bat's stdout
+    // only at -v or higher`: forward the captured stderr (where VsDevCmd.bat's
+    // own chatter lives via the inner `1>&2`) to the user's stderr only when
+    // -v or higher. On failure, capture::capture forwards unconditionally.
+    let post = capture::capture(
+        &install.vsdevcmd_path,
+        cli.devcmd_args.as_deref(),
+        cli.verbose >= 1,
+    )?;
     let env_diff = diff::diff(&pre, &post);
     tracing::info!(
         added = env_diff.added.len(),
@@ -104,7 +112,7 @@ fn error_to_code(e: &Error) -> i32 {
         | Error::VsWhereFailed { .. }
         | Error::NoInstalls
         | Error::NoMatch { .. }
-        | Error::AmbiguousId(_)
+        | Error::AmbiguousId { .. }
         | Error::VsDevCmdMissing(_) => 3,
         Error::VsDevCmdFailed(_) => 4,
         _ => 1,

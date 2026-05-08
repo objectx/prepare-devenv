@@ -116,6 +116,23 @@ pub fn run_vswhere(vswhere: &Path) -> Result<Vec<VsInstance>> {
         });
     }
     let installs: Vec<VsInstance> = serde_json::from_slice(&output.stdout)?;
+    // Per spec `cli-surface-and-diagnostics / -vv should additionally include
+    // the full vswhere JSON`: log a (instance_id, version, path) triple per
+    // install at debug level. We deliberately do NOT log the entire vswhere
+    // payload byte-for-byte — that gets noisy fast on machines with many
+    // installs and the triples carry the disambiguating bits a user would
+    // want to see when troubleshooting `--id` / `--path`.
+    let triples: Vec<(&str, &str, &Path)> = installs
+        .iter()
+        .map(|i| {
+            (
+                i.instance_id.as_str(),
+                i.installation_version.as_str(),
+                i.installation_path.as_path(),
+            )
+        })
+        .collect();
+    tracing::debug!(installs = ?triples, "vswhere returned installations");
     Ok(installs)
 }
 
@@ -183,7 +200,13 @@ fn pick<'a>(installs: &'a [VsInstance], selector: Selector<'_>) -> Result<&'a Vs
                     value: prefix.to_string(),
                 }),
                 1 => Ok(matches[0]),
-                _ => Err(Error::AmbiguousId(prefix.to_string())),
+                _ => Err(Error::AmbiguousId {
+                    prefix: prefix.to_string(),
+                    candidates: matches
+                        .iter()
+                        .map(|i| (i.instance_id.clone(), i.installation_path.clone()))
+                        .collect(),
+                }),
             }
         }
 
@@ -403,7 +426,32 @@ mod tests {
         let installs = load(AMBIGUOUS_PREFIX);
         let err = resolve_with(Selector::ById("ab12"), || Ok(installs.clone())).unwrap_err();
         match err {
-            Error::AmbiguousId(p) => assert_eq!(p, "ab12"),
+            Error::AmbiguousId {
+                ref prefix,
+                ref candidates,
+            } => {
+                assert_eq!(prefix, "ab12");
+                // Spec `vs-installation-discovery / --id prefix matches
+                // multiple installs`: the error must list candidates' short
+                // ids AND paths. Confirm both made it through.
+                assert!(
+                    candidates.len() >= 2,
+                    "expected ≥2 candidates, got {}",
+                    candidates.len()
+                );
+                let rendered = format!("{err}");
+                for (id, path) in candidates {
+                    assert!(
+                        rendered.contains(id),
+                        "rendered message missing id {id}: {rendered}"
+                    );
+                    let path_str = path.display().to_string();
+                    assert!(
+                        rendered.contains(&path_str),
+                        "rendered message missing path {path_str}: {rendered}"
+                    );
+                }
+            }
             other => panic!("expected Error::AmbiguousId, got {other:?}"),
         }
     }

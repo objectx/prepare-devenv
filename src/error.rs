@@ -36,8 +36,20 @@ pub enum Error {
     NoMatch { kind: &'static str, value: String },
 
     /// An `--id` prefix matched more than one installation.
-    #[error("instance id prefix '{0}' is ambiguous; supply more characters to disambiguate")]
-    AmbiguousId(String),
+    ///
+    /// Per spec `vs-installation-discovery / --id prefix matches multiple
+    /// installs`: the rendered message MUST list the matching candidates'
+    /// short ids and paths. The variant carries the original prefix and the
+    /// `(instance_id, install_path)` tuples so the formatter can do its job
+    /// without re-running discovery.
+    #[error(
+        "instance id prefix '{prefix}' is ambiguous; matches: {}; supply more characters to disambiguate",
+        format_candidates(candidates)
+    )]
+    AmbiguousId {
+        prefix: String,
+        candidates: Vec<(String, PathBuf)>,
+    },
 
     /// `VsDevCmd.bat` is missing under the resolved installation path.
     #[error("VsDevCmd.bat not found at {0}")]
@@ -79,6 +91,20 @@ pub enum Error {
 
 /// Crate-wide `Result` alias bound to [`Error`].
 pub type Result<T> = std::result::Result<T, Error>;
+
+/// Format `(instance_id, install_path)` tuples as `id (path), id (path), …`.
+///
+/// Used by the `Display` impl for [`Error::AmbiguousId`] to surface every
+/// candidate the user's `--id` prefix matched. Kept as a free function so
+/// `thiserror`'s `#[error(... format_candidates(candidates) ...)]` macro
+/// invocation resolves it through this module's scope.
+fn format_candidates(candidates: &[(String, PathBuf)]) -> String {
+    candidates
+        .iter()
+        .map(|(id, path)| format!("{id} ({})", path.display()))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
 
 #[cfg(test)]
 mod tests {
