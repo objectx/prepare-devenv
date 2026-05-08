@@ -27,3 +27,11 @@ tempfile = "3.27"
 [features]
 test_hooks = []
 live = []
+
+[profile.dist]
+inherits = "release"
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

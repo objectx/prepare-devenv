@@ -15,12 +15,12 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
 
-      - name: Build release binary
-        run: cargo build --release
+      - name: Build dist binary (size-optimized)
+        run: cargo build --profile dist
 
       - name: Upload prepare-devenv.exe
         uses: actions/upload-artifact@v4
         with:
           name: prepare-devenv-windows-x64
-          path: target/release/prepare-devenv.exe
+          path: target/dist/prepare-devenv.exe
           if-no-files-found: error
