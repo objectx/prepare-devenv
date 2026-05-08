@@ -16,11 +16,11 @@
 
 ## 3. CLI module (clap-derive)
 
-- [ ] 3.1 Define `struct Cli` with fields per `specs/cli-surface-and-diagnostics`: `id`, `path` (mutually exclusive), `devcmd_args`, `emit`, `shell` (clap `ValueEnum`), `verbose` (counted), `command` (`last = true` collected after `--`)
-- [ ] 3.2 Define `enum ShellKind { Cmd, Pwsh, Bash, Fish, Nu }` deriving `clap::ValueEnum`
-- [ ] 3.3 Define `enum Mode { SpawnShell, Emit, RunCommand(Vec<OsString>) }` and `impl Cli { fn mode(&self) -> Mode }` enforcing the `--emit` ⊕ `-- COMMAND` rule via clap's `conflicts_with` plus a manual fallthrough check
-- [ ] 3.4 Add the hidden `--devcmd-script <path>` flag gated behind `#[cfg(feature = "test_hooks")]` for end-to-end tests
-- [ ] 3.5 Unit tests for `Cli::mode()` and clap conflict-error exit codes (id+path, emit+command, unknown shell)
+- [x] 3.1 Define `struct Cli` with fields per `specs/cli-surface-and-diagnostics`: `id`, `path` (mutually exclusive), `devcmd_args`, `emit`, `shell` (clap `ValueEnum`), `verbose` (counted), `command` (`last = true` collected after `--`)
+- [x] 3.2 Define `enum ShellKind { Cmd, Pwsh, Bash, Fish, Nu }` deriving `clap::ValueEnum`
+- [x] 3.3 Define `enum Mode { SpawnShell, Emit, RunCommand(Vec<OsString>) }` and `impl Cli { fn mode(&self) -> Mode }` enforcing the `--emit` ⊕ `-- COMMAND` rule via clap's `conflicts_with` plus a manual fallthrough check
+- [x] 3.4 Add the hidden `--devcmd-script <path>` flag gated behind `#[cfg(feature = "test_hooks")]` for end-to-end tests
+- [x] 3.5 Unit tests for `Cli::mode()` and clap conflict-error exit codes (id+path, emit+command, unknown shell)
 
 ## 4. Discovery module
 
