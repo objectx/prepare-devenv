@@ -62,16 +62,27 @@ pub fn snapshot_pre_env() -> HashMap<OsString, OsString> {
 /// The marker only needs to be unguessable enough to avoid colliding with
 /// any chatter `VsDevCmd.bat` writes to stdout — this is not a security
 /// boundary, just a parser sentinel. We mix `SystemTime` nanos with the
-/// process id through a Knuth multiplicative constant; this gives 16 hex
-/// chars that change every call without pulling in `rand` or `getrandom`.
+/// process id and a process-local atomic counter through a Knuth
+/// multiplicative constant; this gives 16 hex chars that change every call
+/// without pulling in `rand` or `getrandom`. The counter guarantees that
+/// two calls within the same `SystemTime` tick still produce different
+/// output, so the uniqueness test cannot flake on slow runners with
+/// coarse-grained clocks.
 fn fresh_marker() -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos() as u64)
         .unwrap_or(0);
     let pid = u64::from(std::process::id());
-    let raw = nanos.wrapping_mul(0x9E37_79B1_7F4A_7C15).wrapping_add(pid);
+    let counter = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let raw = nanos
+        .wrapping_mul(0x9E37_79B1_7F4A_7C15)
+        .wrapping_add(pid)
+        .wrapping_add(counter);
     format!("__PREPARE_DEVENV_ENV_BEGIN_{raw:016x}__")
 }
 
@@ -94,6 +105,12 @@ fn fresh_marker() -> String {
 ///     by capturing stderr.
 ///   - `&&` short-circuits: if the bat fails, `set` is never reached and the
 ///     inner `cmd.exe` returns the bat's exit code.
+///
+/// Assumes `bat` does not contain a literal `"` and does not end in `\\`
+/// (both are extremely unusual for a `VsDevCmd.bat` path resolved by
+/// vswhere). The cmd.exe quoting algorithm treats `\\"` as an escaped
+/// quote, so a trailing-backslash path before the closing `"` would break
+/// parsing.
 fn build_capture_command(bat: &Path, devcmd_args: Option<&str>, marker: &str) -> Command {
     let inner = format!(
         "call \"{}\" {} 1>&2 && echo {} && set",
@@ -115,6 +132,12 @@ fn build_capture_command(bat: &Path, devcmd_args: Option<&str>, marker: &str) ->
 /// and run them through `String::from_utf16_lossy` so any malformed surrogate
 /// pair is replaced rather than failing the parse. Finally we replace
 /// `\r\n` with `\n` so downstream `.lines()` iteration is uniform.
+///
+/// Assumption: callers pass `cmd /U` output, which always begins with the
+/// UTF-16LE BOM (`0xFF 0xFE`). We treat a leading `0xFF 0xFE` as a BOM
+/// unconditionally; a BOM-less stream whose first code unit *happens* to
+/// be U+FEFF would be mis-stripped, but that cannot occur with `cmd /U`
+/// output.
 fn decode_utf16le(bytes: &[u8]) -> String {
     let body = if bytes.starts_with(&[0xFF, 0xFE]) {
         &bytes[2..]
@@ -193,6 +216,8 @@ pub fn capture(bat: &Path, devcmd_args: Option<&str>) -> Result<HashMap<OsString
         cmd: "cmd.exe".to_string(),
         source,
     })?;
+    // output.stderr holds VsDevCmd.bat's own chatter (via the inner `1>&2`).
+    // Task 9 will surface this under `-v`; for now we discard it.
     if !output.status.success() {
         return Err(Error::VsDevCmdFailed(output.status.code().unwrap_or(-1)));
     }
