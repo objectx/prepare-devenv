@@ -89,6 +89,29 @@ mod tests {
     }
 
     #[test]
+    fn vs_where_failed_message_handles_empty_stderr() {
+        // `run_vswhere` substitutes "(no diagnostic output)" when vswhere
+        // exits non-zero with empty stderr, so the rendered error never has a
+        // trailing colon-space-nothing. We exercise both the substitution
+        // behaviour (the empty-stderr placeholder) and confirm the message
+        // doesn't end with `: ` regardless of which side is empty.
+        let err = Error::VsWhereFailed {
+            code: 1,
+            stderr: "(no diagnostic output)".to_string(),
+        };
+        let msg = format!("{err}");
+        assert!(
+            !msg.ends_with(": "),
+            "rendered message should not end with `: `, got {msg:?}"
+        );
+        assert!(
+            msg.contains("(no diagnostic output)"),
+            "message should surface the placeholder, got {msg:?}"
+        );
+        assert!(msg.contains("exit code 1"), "got {msg:?}");
+    }
+
+    #[test]
     fn spawn_error_chain_walks_into_io_source() {
         let err = Error::Spawn {
             cmd: "x".into(),

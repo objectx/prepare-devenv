@@ -105,9 +105,15 @@ pub fn run_vswhere(vswhere: &Path) -> Result<Vec<VsInstance>> {
         .args(["-format", "json", "-all", "-prerelease", "-products", "*"])
         .output()?;
     if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        let stderr = if stderr.is_empty() {
+            "(no diagnostic output)".to_string()
+        } else {
+            stderr
+        };
         return Err(Error::VsWhereFailed {
             code: output.status.code().unwrap_or(-1),
-            stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+            stderr,
         });
     }
     let installs: Vec<VsInstance> = serde_json::from_slice(&output.stdout)?;
@@ -159,6 +165,11 @@ fn pick<'a>(installs: &'a [VsInstance], selector: Selector<'_>) -> Result<&'a Vs
                 let vb = parse_version_numeric(&b.installation_version);
                 va.cmp(&vb)
                     .then_with(|| a.install_date.cmp(&b.install_date))
+                    // Final deterministic tiebreak: when two installs share both
+                    // version and install_date (notably when both install_date
+                    // values are missing and default to ""), `instance_id` is
+                    // guaranteed unique by vswhere, so this picks deterministically.
+                    .then_with(|| a.instance_id.cmp(&b.instance_id))
             })
             .expect("caller guarantees the slice is non-empty")),
 
@@ -228,6 +239,23 @@ fn parse_version_numeric(v: &str) -> Vec<u64> {
 /// case-insensitive Windows-style equality. Avoids canonicalisation (and the
 /// extra dep that would entail) — string-lower is sufficient for vswhere paths
 /// which are absolute and already in normal form.
+///
+/// Assumptions / known limitations:
+///
+/// 1. **ASCII-only case folding.** `to_ascii_lowercase` does NOT case-fold
+///    non-ASCII characters (e.g. `Ä`, Cyrillic `Б`). This is acceptable
+///    because `vswhere` paths are typically rooted under English-locale
+///    `Program Files` / `Program Files (x86)` directories with ASCII
+///    directory names, and Visual Studio's installer enforces ASCII-only
+///    install paths.
+///
+/// 2. **Path separators are NOT normalized.** `\\server/share\foo` and
+///    `\\server\share\foo` would compare unequal. UNC paths in `vswhere`
+///    output are rare to nonexistent in practice (VS installs go to local
+///    drives), but if a user passes a hand-typed `--path` with mixed
+///    separators that don't match `vswhere`'s output verbatim, the match
+///    will fail. We accept this rather than picking a separator convention
+///    that might surprise on the rare case it does come up.
 fn normalize_path_for_compare(p: &Path) -> String {
     let s = p.to_string_lossy().to_ascii_lowercase();
     s.trim_end_matches(['\\', '/']).to_string()
@@ -415,6 +443,38 @@ mod tests {
         assert_eq!(chosen.instance_id, "22222222"); // 2024-09-22 > 2024-01-15
     }
 
+    #[test]
+    fn latest_tiebreaks_deterministically_when_install_date_missing() {
+        // Two installs with identical version and BOTH install_date values
+        // empty (the default when `serde(default)` fills in for a missing
+        // field). With the version + install_date tiebreaks both returning
+        // Equal, the final fallback on `instance_id` must pick deterministically.
+        let a = VsInstance {
+            installation_path: PathBuf::from(r"C:\VS\A"),
+            installation_version: "17.10.1".into(),
+            instance_id: "aaaaaaaa".into(),
+            display_name: String::new(),
+            install_date: String::new(),
+        };
+        let b = VsInstance {
+            installation_path: PathBuf::from(r"C:\VS\B"),
+            installation_version: "17.10.1".into(),
+            instance_id: "bbbbbbbb".into(),
+            display_name: String::new(),
+            install_date: String::new(),
+        };
+
+        // Both input orderings must yield the same pick — the structural
+        // determinism guarantee. Ordering by `instance_id` ascending under
+        // `max_by` means the lexically-greater id wins ("bbbbbbbb" > "aaaaaaaa").
+        let ab = [a.clone(), b.clone()];
+        let ba = [b.clone(), a.clone()];
+        let chosen_ab = pick(&ab, Selector::Latest).unwrap();
+        let chosen_ba = pick(&ba, Selector::Latest).unwrap();
+        assert_eq!(chosen_ab.instance_id, "bbbbbbbb");
+        assert_eq!(chosen_ba.instance_id, "bbbbbbbb");
+    }
+
     // --- VsDevCmd.bat existence verification -------------------------------
 
     #[test]
@@ -457,5 +517,15 @@ mod tests {
         assert_eq!(parse_version_numeric("18.0.0-preview.2"), vec![18, 0, 0]);
         assert!(parse_version_numeric("17.10.1") > parse_version_numeric("17.8.4"));
         assert!(parse_version_numeric("18.0.0-preview.2") > parse_version_numeric("17.10.1"));
+
+        // Edge cases — document the contract for inputs vswhere shouldn't
+        // produce but which keep the function total rather than panicking:
+        //   - empty string: one empty segment → [0]
+        //   - trailing dot: empty trailing segment → 0 in last slot
+        //   - non-numeric: `chars().take_while(is_ascii_digit)` yields ""; parse → 0
+        assert_eq!(parse_version_numeric(""), vec![0]);
+        assert_eq!(parse_version_numeric("17.10."), vec![17, 10, 0]);
+        assert_eq!(parse_version_numeric("foo"), vec![0]);
+        assert_eq!(parse_version_numeric("foo.bar"), vec![0, 0]);
     }
 }
