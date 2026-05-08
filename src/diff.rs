@@ -38,16 +38,15 @@
 //! the diff) as distinct entries; on `Command::envs(...)`, Windows folds
 //! them at process-creation time and the spawned process sees only one of
 //! them, with implementation-defined precedence. To avoid that footgun,
-//! `merged_env` removes any case-insensitively-matching base entry before
-//! inserting each diff entry — the merged map then has at most one entry
-//! per logical name, and that entry uses the post side's casing. The
-//! `O(n*m)` retain-loop inside `for (k, v) in self.iter()` is fine at env
-//! sizes (~100-200 vars per process).
+//! `merged_env` filters base entries against the set of (lower-cased) diff
+//! keys before inserting the diff entries — the merged map then has at
+//! most one entry per logical name, and that entry uses the post side's
+//! casing. See [`EnvDiff::merged_env`] for the implementation details.
 
 #![allow(dead_code)] // wired into runner.rs by Task 8 and main.rs by Task 9
 
 use std::collections::{BTreeMap, HashMap};
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsString;
 
 /// The set of env-var changes produced by running `VsDevCmd.bat`.
 ///
@@ -62,19 +61,6 @@ pub struct EnvDiff {
     pub added: BTreeMap<OsString, OsString>,
     /// Keys present in both `pre` and `post` with byte-different values.
     pub modified: BTreeMap<OsString, OsString>,
-}
-
-/// ASCII case-insensitive equality between two `OsStr` env-var names.
-///
-/// Assumes the names are ASCII-only — true in practice for every env var
-/// the tool encounters on Windows (parent inherited environment plus the
-/// names emitted by `VsDevCmd.bat`). The `to_string_lossy` fallback for
-/// non-UTF-16-encodable bytes still produces deterministic output for
-/// both inputs, so the comparison is consistent even on a hypothetical
-/// non-ASCII name.
-fn key_eq_ci(a: &OsStr, b: &OsStr) -> bool {
-    a.to_string_lossy()
-        .eq_ignore_ascii_case(&b.to_string_lossy())
 }
 
 /// Compute the added / modified env delta between `pre` and `post`.
@@ -131,22 +117,55 @@ impl EnvDiff {
 
     /// Overlay this diff onto `base`, returning a fresh map.
     ///
-    /// For each entry in [`Self::iter`]: any base entry whose name
-    /// case-insensitively matches the diff entry's name is removed
-    /// first, then the diff entry is inserted with the post side's
-    /// casing. This guarantees the returned map has at most one entry
-    /// per logical (case-folded) env-var name — see the module-level
-    /// note for why that matters when the result is fed to
-    /// `Command::envs(...)`.
+    /// The returned map is guaranteed to have at most one entry per
+    /// logical (case-folded) env-var name, with the diff's casing
+    /// winning when both sides supply a name.
+    ///
+    /// ## Deviation from the plan
+    ///
+    /// The naive overlay the plan sketched is:
+    ///
+    /// ```text
+    /// let mut out = base.clone();
+    /// for (k, v) in self.iter() { out.insert(k.clone(), v.clone()); }
+    /// ```
+    ///
+    /// That implementation is wrong on Windows. If `base` carries `Path`
+    /// (the casing the parent shell happened to use) and the diff carries
+    /// `PATH` (`VsDevCmd.bat`'s casing), `HashMap::insert` treats them as
+    /// distinct keys — so `out` ends up with both `Path=<old>` and
+    /// `PATH=<new>`. When that map is later handed to
+    /// `Command::envs(...)`, Windows folds the names case-insensitively
+    /// at process-creation time and the spawned process sees only one of
+    /// the two values, with implementation-defined precedence — a silent
+    /// regression where the developer-environment `PATH` is randomly
+    /// shadowed by the inherited one.
+    ///
+    /// The deliberate strategy below sidesteps that by:
+    ///   1. Building a `HashSet` of lower-cased diff key names once
+    ///      (`O(d)`).
+    ///   2. Copying base entries into `out` only when their lower-cased
+    ///      name is NOT in that set (`O(b)`).
+    ///   3. Inserting every diff entry with its original (post-side)
+    ///      casing (`O(d)`).
+    ///
+    /// Total cost is `O(b + d)` instead of the previous retain-loop's
+    /// `O(b * d)`. At env sizes of ~100–200 vars the difference is
+    /// negligible in wall time, but the linear form reads cleanly and
+    /// removes the only quadratic in the merge path.
     pub fn merged_env(&self, base: &HashMap<OsString, OsString>) -> HashMap<OsString, OsString> {
-        let mut out = base.clone();
+        use std::collections::HashSet;
+        let diff_keys_lc: HashSet<String> = self
+            .iter()
+            .map(|(k, _)| k.to_string_lossy().to_ascii_lowercase())
+            .collect();
+        let mut out: HashMap<OsString, OsString> = HashMap::with_capacity(base.len());
+        for (k, v) in base {
+            if !diff_keys_lc.contains(&k.to_string_lossy().to_ascii_lowercase()) {
+                out.insert(k.clone(), v.clone());
+            }
+        }
         for (k, v) in self.iter() {
-            // Remove any pre-existing entry whose key case-insensitively
-            // matches `k`. `retain` runs in O(m) per diff entry; with
-            // env sizes around ~100-200 vars and diffs around ~10-20
-            // entries, the total O(n*m) is well under a millisecond.
-            let k_lc = k.to_string_lossy().to_ascii_lowercase();
-            out.retain(|existing_k, _| existing_k.to_string_lossy().to_ascii_lowercase() != k_lc);
             out.insert(k.clone(), v.clone());
         }
         out
@@ -335,15 +354,5 @@ mod tests {
         );
         // Sanity: exactly one key, regardless of casing.
         assert_eq!(merged.len(), 1);
-    }
-
-    #[test]
-    fn key_eq_ci_basic() {
-        // Direct unit coverage of the helper used by diff() — ASCII
-        // case-folding only.
-        assert!(key_eq_ci(OsStr::new("PATH"), OsStr::new("path")));
-        assert!(key_eq_ci(OsStr::new("Path"), OsStr::new("PATH")));
-        assert!(!key_eq_ci(OsStr::new("PATH"), OsStr::new("PATHS")));
-        assert!(!key_eq_ci(OsStr::new("FOO"), OsStr::new("BAR")));
     }
 }
