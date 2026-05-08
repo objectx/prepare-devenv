@@ -7,8 +7,12 @@
 //!
 //! 1. `--path <dir>` — exact case-insensitive match on `installationPath`.
 //! 2. `--id <prefix>` — leading-hex prefix match on `instanceId`.
-//! 3. neither — highest `installationVersion` (numeric semver-style compare),
-//!    breaking ties by `installDate` descending.
+//! 3. neither — highest STABLE `installationVersion` (numeric semver-style
+//!    compare), breaking ties by `installDate` descending. Prereleases (any
+//!    version with a `-` suffix, e.g. `18.0.0-preview.2`) are excluded from
+//!    auto-selection; they remain reachable via `--id` / `--path` when the
+//!    user explicitly opts in. If only prereleases are installed, the picker
+//!    falls back to the highest prerelease and emits a `tracing::warn!`.
 //!
 //! IO is pushed to the edge: [`resolve_with`] takes a closure that fetches the
 //! list of installs, so the selection and verification logic can be unit-tested
@@ -172,22 +176,36 @@ where
 }
 
 /// Apply the selector to choose one [`VsInstance`] from a non-empty slice.
+///
+/// `Selector::Latest` deliberately prefers **stable** installs over prereleases.
+/// A prerelease is identified by a `-` in the `installation_version` (vswhere's
+/// convention, e.g. `18.0.0-preview.2`). Prereleases remain reachable via
+/// `Selector::ById` and `Selector::ByPath` — they're only excluded from
+/// auto-selection. If the host has *only* prerelease installs, we fall back to
+/// the highest prerelease and emit a `tracing::warn!` so a `-v` run surfaces
+/// the choice.
 fn pick<'a>(installs: &'a [VsInstance], selector: Selector<'_>) -> Result<&'a VsInstance> {
     match selector {
-        Selector::Latest => Ok(installs
-            .iter()
-            .max_by(|a, b| {
-                let va = parse_version_numeric(&a.installation_version);
-                let vb = parse_version_numeric(&b.installation_version);
-                va.cmp(&vb)
-                    .then_with(|| a.install_date.cmp(&b.install_date))
-                    // Final deterministic tiebreak: when two installs share both
-                    // version and install_date (notably when both install_date
-                    // values are missing and default to ""), `instance_id` is
-                    // guaranteed unique by vswhere, so this picks deterministically.
-                    .then_with(|| a.instance_id.cmp(&b.instance_id))
-            })
-            .expect("caller guarantees the slice is non-empty")),
+        Selector::Latest => {
+            let stable: Vec<&'a VsInstance> = installs
+                .iter()
+                .filter(|i| !i.installation_version.contains('-'))
+                .collect();
+            if !stable.is_empty() {
+                Ok(*stable
+                    .iter()
+                    .max_by(|a, b| cmp_install_for_latest(a, b))
+                    .expect("non-empty by construction"))
+            } else {
+                tracing::warn!(
+                    "no stable Visual Studio installs found; selecting from prereleases"
+                );
+                Ok(installs
+                    .iter()
+                    .max_by(|a, b| cmp_install_for_latest(a, b))
+                    .expect("caller guarantees the slice is non-empty"))
+            }
+        }
 
         Selector::ById(prefix) => {
             let matches: Vec<&VsInstance> = installs
@@ -255,6 +273,21 @@ fn parse_version_numeric(v: &str) -> Vec<u64> {
             numeric_prefix.parse::<u64>().unwrap_or(0)
         })
         .collect()
+}
+
+/// Comparator used by `Selector::Latest`: numeric version, then install_date,
+/// then instance_id. Extracted so both the stable-only branch and the
+/// prerelease-fallback branch share one ordering definition.
+fn cmp_install_for_latest(a: &VsInstance, b: &VsInstance) -> std::cmp::Ordering {
+    let va = parse_version_numeric(&a.installation_version);
+    let vb = parse_version_numeric(&b.installation_version);
+    va.cmp(&vb)
+        .then_with(|| a.install_date.cmp(&b.install_date))
+        // Final deterministic tiebreak: when two installs share both version
+        // and install_date (notably when both install_date values are empty
+        // — the `serde(default)` fallback), `instance_id` is guaranteed unique
+        // by vswhere, so this picks deterministically.
+        .then_with(|| a.instance_id.cmp(&b.instance_id))
 }
 
 /// Lower-case the path's lossy string form and trim trailing slashes for
@@ -472,14 +505,65 @@ mod tests {
     // --- Latest semantics --------------------------------------------------
 
     #[test]
-    fn latest_picks_highest_version_numerically_not_lexically() {
-        // Versions: 17.8.4, 18.0.0-preview.2, 17.10.1.
-        // Lexical sort would rank "17.8.4" > "17.10.1" (because "8" > "1");
-        // numeric must give 18.x > 17.10.x > 17.8.x.
+    fn latest_picks_highest_stable_version_skipping_prereleases() {
+        // Fixture has three installs:
+        //   - aaaaaaaa : 17.8.4              (stable)
+        //   - bbbbbbbb : 18.0.0-preview.2    (PRERELEASE)
+        //   - cccccccc : 17.10.1             (stable)
+        //
+        // Latest must (a) compare versions numerically (so 17.10.1 > 17.8.4,
+        // not the lexical "17.8.4" > "17.10.1"), AND (b) skip the prerelease
+        // 18.x. Net result: cccccccc wins.
         let installs = load(MULTIPLE_DIFFERENT_VERSIONS);
         let chosen = pick(&installs, Selector::Latest).unwrap();
+        assert_eq!(chosen.instance_id, "cccccccc");
+        assert_eq!(chosen.installation_version, "17.10.1");
+    }
+
+    #[test]
+    fn latest_falls_back_to_prerelease_when_no_stable_installs_exist() {
+        // Two installs, both prereleases. Latest must pick one (with a warn);
+        // refusing to pick at all would force the user to specify --id/--path
+        // even when there's literally nothing else available.
+        let installs = vec![
+            VsInstance {
+                installation_path: PathBuf::from(r"C:\VS\Preview1"),
+                installation_version: "18.0.0-preview.1".into(),
+                instance_id: "preview1".into(),
+                display_name: "VS 18 preview.1".into(),
+                install_date: "2025-01-01T00:00:00Z".into(),
+            },
+            VsInstance {
+                installation_path: PathBuf::from(r"C:\VS\Preview2"),
+                installation_version: "18.0.0-preview.2".into(),
+                instance_id: "preview2".into(),
+                display_name: "VS 18 preview.2".into(),
+                install_date: "2025-02-01T00:00:00Z".into(),
+            },
+        ];
+        let chosen = pick(&installs, Selector::Latest).unwrap();
+        // Both prereleases share parse_version_numeric == [18, 0, 0], so the
+        // install_date tiebreak kicks in: preview2's later date wins.
+        assert_eq!(chosen.instance_id, "preview2");
+    }
+
+    #[test]
+    fn id_can_target_a_prerelease() {
+        // Even though `Latest` skips prereleases, `--id` must still let the
+        // user target one explicitly — that's the whole point of having a
+        // selector.
+        let installs = load(MULTIPLE_DIFFERENT_VERSIONS);
+        let chosen = pick(&installs, Selector::ById("bbbb")).unwrap();
         assert_eq!(chosen.instance_id, "bbbbbbbb");
         assert_eq!(chosen.installation_version, "18.0.0-preview.2");
+    }
+
+    #[test]
+    fn path_can_target_a_prerelease() {
+        let installs = load(MULTIPLE_DIFFERENT_VERSIONS);
+        let probe = PathBuf::from(r"C:\Program Files\Microsoft Visual Studio\18\IntPreview");
+        let chosen = pick(&installs, Selector::ByPath(&probe)).unwrap();
+        assert_eq!(chosen.instance_id, "bbbbbbbb");
     }
 
     #[test]
