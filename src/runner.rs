@@ -74,18 +74,26 @@ fn build_shell_env(
     base: &HashMap<OsString, OsString>,
     shell: &dyn Shell,
 ) -> HashMap<OsString, OsString> {
-    // Start from the case-folded merge so any case-variant base entry
-    // (e.g. `Path` from cmd, `PATH` from the diff) is collapsed to the
-    // diff's casing. Then overwrite each diff entry with the
-    // `translate_path`-rewritten value so bash's `PATH` lands in POSIX
-    // form. The first pass already inserted the raw value; the second
-    // pass replaces it with the translated one.
-    let mut merged = diff.merged_env(base);
-    for (name, value) in diff.iter() {
-        let translated = shell.translate_path(name, value);
-        merged.insert(name.clone(), translated);
+    // Single pass: copy base entries whose key (lower-cased) does NOT
+    // collide with any diff key, then insert each diff entry with
+    // `translate_path` applied. This collapses case-variant base entries
+    // (e.g. `Path` from cmd) to the diff's casing without the wasted
+    // double-write of merging-then-overwriting.
+    use std::collections::HashSet;
+    let diff_keys_lc: HashSet<String> = diff
+        .iter()
+        .map(|(k, _)| k.to_string_lossy().to_ascii_lowercase())
+        .collect();
+    let mut out: HashMap<OsString, OsString> = HashMap::with_capacity(base.len());
+    for (k, v) in base {
+        if !diff_keys_lc.contains(&k.to_string_lossy().to_ascii_lowercase()) {
+            out.insert(k.clone(), v.clone());
+        }
     }
-    merged
+    for (k, v) in diff.iter() {
+        out.insert(k.clone(), shell.translate_path(k, v));
+    }
+    out
 }
 
 /// Spawn the chosen shell with the merged env, inheriting stdio so the
@@ -294,6 +302,10 @@ mod tests {
         let mut buf: Vec<u8> = Vec::new();
         let err = emit(&diff, shell.as_ref(), &mut buf).expect_err("cmd should reject `\"`");
         assert!(matches!(err, Error::EnvParse(_)), "got {err:?}");
+        assert!(
+            buf.is_empty(),
+            "no partial output should be written on format_set error"
+        );
     }
 
     #[test]
