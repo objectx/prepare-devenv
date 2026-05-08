@@ -10,9 +10,9 @@
 
 ## 2. Error type & result alias
 
-- [ ] 2.1 Define `enum Error` in `src/error.rs` using `#[derive(thiserror::Error, Debug)]` covering: `VsWhereMissing`, `VsWhereFailed { code, stderr }`, `NoInstalls`, `NoMatch { kind, value }`, `AmbiguousId(String)`, `VsDevCmdMissing(PathBuf)`, `VsDevCmdFailed(i32)`, `EnvParse(&'static str)`, `UnknownShell(String)`, `Spawn { cmd, source }`, `Io(io::Error)`, `Json(serde_json::Error)`
-- [ ] 2.2 Add a `pub type Result<T> = std::result::Result<T, Error>` alias
-- [ ] 2.3 Implement `From<io::Error>` and `From<serde_json::Error>` via `#[from]` on the variants
+- [x] 2.1 Define `enum Error` in `src/error.rs` using `#[derive(thiserror::Error, Debug)]` covering: `VsWhereMissing`, `VsWhereFailed { code, stderr }`, `NoInstalls`, `NoMatch { kind, value }`, `AmbiguousId(String)`, `VsDevCmdMissing(PathBuf)`, `VsDevCmdFailed(i32)`, `EnvParse(&'static str)`, `UnknownShell(String)`, `Spawn { cmd, source }`, `Io(io::Error)`, `Json(serde_json::Error)`
+- [x] 2.2 Add a `pub type Result<T> = std::result::Result<T, Error>` alias
+- [x] 2.3 Implement `From<io::Error>` and `From<serde_json::Error>` via `#[from]` on the variants
 
 ## 3. CLI module (clap-derive)
 
