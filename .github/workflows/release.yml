@@ -1,13 +1,24 @@
-name: Release build
+name: Release
 
 on:
+  push:
+    tags: ['v*']
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g. v0.1.0). Must already exist.'
+        required: true
+        type: string
 
 jobs:
   release:
     runs-on: windows-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -15,12 +26,27 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
 
+      - name: Test (default features)
+        run: cargo test
+
+      - name: Test (test_hooks feature)
+        run: cargo test --features test_hooks
+
       - name: Build dist binary (size-optimized)
         run: cargo build --profile dist
 
-      - name: Upload prepare-devenv.exe
-        uses: actions/upload-artifact@v4
+      - name: Generate SHA-256 checksum
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash -Path target/dist/prepare-devenv.exe -Algorithm SHA256).Hash.ToLower()
+          "$hash  prepare-devenv.exe" | Set-Content -Path target/dist/prepare-devenv.exe.sha256 -Encoding ascii
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: prepare-devenv-windows-x64
-          path: target/dist/prepare-devenv.exe
-          if-no-files-found: error
+          tag_name: ${{ inputs.tag || github.ref_name }}
+          files: |
+            target/dist/prepare-devenv.exe
+            target/dist/prepare-devenv.exe.sha256
+          generate_release_notes: true
+          fail_on_unmatched_files: true
