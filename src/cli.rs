@@ -133,6 +133,7 @@ impl Cli {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use clap::error::ErrorKind;
 
     #[test]
     fn no_args_is_spawn_shell() {
@@ -158,32 +159,55 @@ mod tests {
     }
 
     #[test]
+    fn trailing_argv_with_flags_is_preserved() {
+        let cli = Cli::try_parse_from(["prepare-devenv", "--", "bash", "-c", "cl /?"])
+            .expect("trailing argv with flags parses");
+        match cli.mode() {
+            Mode::RunCommand(argv) => {
+                assert_eq!(
+                    argv,
+                    vec![
+                        OsString::from("bash"),
+                        OsString::from("-c"),
+                        OsString::from("cl /?"),
+                    ]
+                );
+            }
+            other => panic!("expected Mode::RunCommand, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn shell_kind_parses() {
+        let cli = Cli::try_parse_from(["prepare-devenv", "--shell", "bash"])
+            .expect("--shell bash parses");
+        assert_eq!(cli.shell, Some(ShellKind::Bash));
+    }
+
+    #[test]
+    fn verbose_counts() {
+        let cli = Cli::try_parse_from(["prepare-devenv", "-vv"]).expect("-vv parses");
+        assert_eq!(cli.verbose, 2);
+    }
+
+    #[test]
     fn id_and_path_are_mutually_exclusive() {
         let result = Cli::try_parse_from(["prepare-devenv", "--id", "X", "--path", "Y"]);
-        assert!(
-            result.is_err(),
-            "expected clap to reject --id with --path, got Ok({:?})",
-            result.ok().map(|c| c.mode())
-        );
+        let err = result.expect_err("expected clap to reject --id with --path");
+        assert_eq!(err.kind(), ErrorKind::ArgumentConflict);
     }
 
     #[test]
     fn emit_and_trailing_command_are_mutually_exclusive() {
         let result = Cli::try_parse_from(["prepare-devenv", "--emit", "--", "foo"]);
-        assert!(
-            result.is_err(),
-            "expected clap to reject --emit with -- COMMAND, got Ok({:?})",
-            result.ok().map(|c| c.mode())
-        );
+        let err = result.expect_err("expected clap to reject --emit with -- COMMAND");
+        assert_eq!(err.kind(), ErrorKind::ArgumentConflict);
     }
 
     #[test]
     fn unknown_shell_value_is_rejected() {
         let result = Cli::try_parse_from(["prepare-devenv", "--shell", "zsh"]);
-        assert!(
-            result.is_err(),
-            "expected clap to reject --shell zsh, got Ok({:?})",
-            result.ok().map(|c| c.shell)
-        );
+        let err = result.expect_err("expected clap to reject --shell zsh");
+        assert_eq!(err.kind(), ErrorKind::InvalidValue);
     }
 }
