@@ -33,12 +33,16 @@ pub enum ShellKind {
     Nu,
 }
 
-/// Parsed command-line invocation.
-///
-/// Fields map 1:1 to documented flags in
-/// `specs/cli-surface-and-diagnostics`. Mutually-exclusive flag pairs
-/// are enforced via `conflicts_with`; the trailing `-- COMMAND` argv is
-/// collected into [`command`](Self::command) via `last = true`.
+// Parsed command-line invocation.
+//
+// Fields map 1:1 to documented flags in `specs/cli-surface-and-diagnostics`.
+// Mutually-exclusive flag pairs are enforced via `conflicts_with`; the trailing
+// `-- COMMAND` argv is collected into `command` via `last = true`.
+//
+// Note: this is a non-doc comment deliberately. clap-derive uses the rustdoc
+// of `Cli` as `--help`'s long-about, and we don't want this implementation
+// note showing up to end-users. The user-visible description lives in the
+// `#[command(about = ...)]` attribute below.
 #[derive(Parser, Debug)]
 #[command(
     name = "prepare-devenv",
