@@ -1,0 +1,26 @@
+name: Live tests (requires Visual Studio)
+
+# Manual dispatch only. Targets a self-hosted runner labeled
+# `self-hosted, windows, vs-installed`. The runner must have:
+#   - Windows
+#   - A Visual Studio install (any 2017+)
+#   - vswhere.exe at the standard installer path
+#   - cargo / rustc on PATH
+
+on:
+  workflow_dispatch:
+
+jobs:
+  live:
+    runs-on: [self-hosted, windows, vs-installed]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Live tests (require Visual Studio)
+        run: cargo test --features live

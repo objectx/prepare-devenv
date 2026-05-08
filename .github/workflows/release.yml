@@ -1,0 +1,26 @@
+name: Release build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Upload prepare-devenv.exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: prepare-devenv-windows-x64
+          path: target/release/prepare-devenv.exe
+          if-no-files-found: error

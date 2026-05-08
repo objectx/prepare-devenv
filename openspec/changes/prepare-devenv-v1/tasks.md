@@ -101,10 +101,10 @@
 
 ## 12. CI workflow
 
-- [ ] 12.1 Create `.github/workflows/ci.yml` with a single job on `windows-latest` running: `cargo fmt -- --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test --features test_hooks`
-- [ ] 12.2 Cache `~/.cargo/registry`, `~/.cargo/git`, `target/` with the standard rust-cache action keyed on `Cargo.lock`
-- [ ] 12.3 Add a separate, manually-triggered workflow (`workflow_dispatch`) for the `live` job intended to run on a self-hosted Windows-with-VS runner; document the runner-label requirement
-- [ ] 12.4 Add a `release` job (also `workflow_dispatch`) that builds a release binary with `cargo build --release` and uploads it as a workflow artifact (full Releases / signing wiring is out of v1 scope)
+- [x] 12.1 Create `.github/workflows/ci.yml` with a single job on `windows-latest` running: `cargo fmt -- --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test --features test_hooks`
+- [x] 12.2 Cache `~/.cargo/registry`, `~/.cargo/git`, `target/` with the standard rust-cache action keyed on `Cargo.lock`
+- [x] 12.3 Add a separate, manually-triggered workflow (`workflow_dispatch`) for the `live` job intended to run on a self-hosted Windows-with-VS runner; document the runner-label requirement
+- [x] 12.4 Add a `release` job (also `workflow_dispatch`) that builds a release binary with `cargo build --release` and uploads it as a workflow artifact (full Releases / signing wiring is out of v1 scope)
 
 ## 13. Documentation polish
 
