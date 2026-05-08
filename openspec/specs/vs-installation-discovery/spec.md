@@ -47,7 +47,7 @@ The tool SHALL invoke `vswhere -format json -all -prerelease -products *`, MUST 
 
 ### Requirement: Resolve a single install by --id, --path, or latest
 
-The tool SHALL resolve exactly one Visual Studio install per invocation according to a deterministic precedence: `--path <dir>` MUST match `installationPath` case-insensitively (Windows path-equivalent); `--id <prefix>` MUST match the leading hex characters of `instanceId`; absent both, the tool MUST select the install with the highest **stable** `installationVersion` (semver-style numeric compare, not lexical) with `installDate` descending as a tie-breaker. Prerelease installs (any `installationVersion` containing `-`, e.g. `18.0.0-preview.2`) MUST be excluded from auto-selection but MUST remain reachable via `--id` and `--path`. If the host has only prerelease installs, the tool MUST fall back to the highest prerelease (with a `tracing::warn!` emitted) rather than refusing to pick. Zero matches or ambiguous `--id` MUST surface as a discovery error (exit code 3).
+The tool SHALL resolve exactly one Visual Studio install per invocation according to a deterministic precedence: `--path <dir>` MUST match `installationPath` case-insensitively (Windows path-equivalent); `--id <prefix>` MUST match the leading hex characters of `instanceId`; absent both, the tool MUST select the install with the highest **stable** `installationVersion` (semver-style numeric compare, not lexical) with `installDate` descending as a tie-breaker. Prerelease installs (those with `isPrerelease: true` in vswhere's JSON output — note that `installationVersion` itself does NOT carry a `-preview` / `-insiders` suffix, so the boolean is the only reliable signal) MUST be excluded from auto-selection but MUST remain reachable via `--id` and `--path`. If the host has only prerelease installs, the tool MUST fall back to the highest prerelease (with a `tracing::warn!` emitted) rather than refusing to pick. Zero matches or ambiguous `--id` MUST surface as a discovery error (exit code 3).
 
 #### Scenario: --path matches exactly one install
 
@@ -71,7 +71,7 @@ The tool SHALL resolve exactly one Visual Studio install per invocation accordin
 
 #### Scenario: neither --id nor --path given, prereleases mixed with stable
 
-- **WHEN** the install list contains both prereleases (`installationVersion` with `-` suffix) and stable installs
+- **WHEN** the install list contains both prereleases (`isPrerelease: true`) and stable installs, including the case where a prerelease has a numerically higher `installationVersion` than every stable install
 - **THEN** the tool selects the highest stable install and ignores prereleases regardless of their version
 
 #### Scenario: neither --id nor --path given, only prereleases installed

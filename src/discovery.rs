@@ -8,11 +8,14 @@
 //! 1. `--path <dir>` — exact case-insensitive match on `installationPath`.
 //! 2. `--id <prefix>` — leading-hex prefix match on `instanceId`.
 //! 3. neither — highest STABLE `installationVersion` (numeric semver-style
-//!    compare), breaking ties by `installDate` descending. Prereleases (any
-//!    version with a `-` suffix, e.g. `18.0.0-preview.2`) are excluded from
-//!    auto-selection; they remain reachable via `--id` / `--path` when the
-//!    user explicitly opts in. If only prereleases are installed, the picker
-//!    falls back to the highest prerelease and emits a `tracing::warn!`.
+//!    compare), breaking ties by `installDate` descending. Prereleases are
+//!    identified via vswhere's `isPrerelease` boolean (NOT by parsing the
+//!    version string — real-world `installationVersion` is plain numeric
+//!    even for Insiders/Preview installs; the `-preview` / `-insiders` suffix
+//!    only shows up in `productSemanticVersion`). Prereleases are excluded
+//!    from auto-selection but remain reachable via `--id` / `--path` when
+//!    the user explicitly opts in. If only prereleases are installed, the
+//!    picker falls back to the highest prerelease and emits a `tracing::warn!`.
 //!
 //! IO is pushed to the edge: [`resolve_with`] takes a closure that fetches the
 //! list of installs, so the selection and verification logic can be unit-tested
@@ -42,6 +45,13 @@ pub struct VsInstance {
     pub display_name: String,
     #[serde(default)]
     pub install_date: String,
+    /// vswhere's canonical prerelease flag — true for Insiders / Preview
+    /// channels. `installationVersion` itself does NOT carry a `-preview`
+    /// suffix in real vswhere output, so this boolean is the only reliable
+    /// signal. `serde(default)` makes the field tolerant of older vswhere
+    /// versions that might omit it.
+    #[serde(default)]
+    pub is_prerelease: bool,
 }
 
 /// User-facing selector controlling which install [`resolve_with`] returns.
@@ -178,19 +188,19 @@ where
 /// Apply the selector to choose one [`VsInstance`] from a non-empty slice.
 ///
 /// `Selector::Latest` deliberately prefers **stable** installs over prereleases.
-/// A prerelease is identified by a `-` in the `installation_version` (vswhere's
-/// convention, e.g. `18.0.0-preview.2`). Prereleases remain reachable via
-/// `Selector::ById` and `Selector::ByPath` — they're only excluded from
-/// auto-selection. If the host has *only* prerelease installs, we fall back to
-/// the highest prerelease and emit a `tracing::warn!` so a `-v` run surfaces
-/// the choice.
+/// A prerelease is identified by vswhere's `isPrerelease` flag — NOT by string
+/// matching on `installationVersion`, which is plain numeric (e.g.
+/// `18.6.11723.189`) even for Insiders/Preview installs. The `-preview` /
+/// `-insiders` suffix only appears in `productSemanticVersion`, which we don't
+/// consult. Prereleases remain reachable via `Selector::ById` and
+/// `Selector::ByPath` — they're only excluded from auto-selection. If the host
+/// has *only* prerelease installs, we fall back to the highest prerelease and
+/// emit a `tracing::warn!` so a `-v` run surfaces the choice.
 fn pick<'a>(installs: &'a [VsInstance], selector: Selector<'_>) -> Result<&'a VsInstance> {
     match selector {
         Selector::Latest => {
-            let stable: Vec<&'a VsInstance> = installs
-                .iter()
-                .filter(|i| !i.installation_version.contains('-'))
-                .collect();
+            let stable: Vec<&'a VsInstance> =
+                installs.iter().filter(|i| !i.is_prerelease).collect();
             if !stable.is_empty() {
                 Ok(*stable
                     .iter()
@@ -346,6 +356,7 @@ mod tests {
             instance_id: instance_id.to_string(),
             display_name: "Stub VS".into(),
             install_date: "2025-01-01T00:00:00Z".into(),
+            is_prerelease: false,
         }
     }
 
@@ -528,22 +539,24 @@ mod tests {
         let installs = vec![
             VsInstance {
                 installation_path: PathBuf::from(r"C:\VS\Preview1"),
-                installation_version: "18.0.0-preview.1".into(),
+                installation_version: "18.6.11723.100".into(),
                 instance_id: "preview1".into(),
                 display_name: "VS 18 preview.1".into(),
                 install_date: "2025-01-01T00:00:00Z".into(),
+                is_prerelease: true,
             },
             VsInstance {
                 installation_path: PathBuf::from(r"C:\VS\Preview2"),
-                installation_version: "18.0.0-preview.2".into(),
+                installation_version: "18.6.11723.100".into(),
                 instance_id: "preview2".into(),
                 display_name: "VS 18 preview.2".into(),
                 install_date: "2025-02-01T00:00:00Z".into(),
+                is_prerelease: true,
             },
         ];
         let chosen = pick(&installs, Selector::Latest).unwrap();
-        // Both prereleases share parse_version_numeric == [18, 0, 0], so the
-        // install_date tiebreak kicks in: preview2's later date wins.
+        // Both prereleases share parse_version_numeric so the install_date
+        // tiebreak kicks in: preview2's later date wins.
         assert_eq!(chosen.instance_id, "preview2");
     }
 
@@ -555,7 +568,8 @@ mod tests {
         let installs = load(MULTIPLE_DIFFERENT_VERSIONS);
         let chosen = pick(&installs, Selector::ById("bbbb")).unwrap();
         assert_eq!(chosen.instance_id, "bbbbbbbb");
-        assert_eq!(chosen.installation_version, "18.0.0-preview.2");
+        assert_eq!(chosen.installation_version, "18.6.11723.189");
+        assert!(chosen.is_prerelease);
     }
 
     #[test]
@@ -586,6 +600,7 @@ mod tests {
             instance_id: "aaaaaaaa".into(),
             display_name: String::new(),
             install_date: String::new(),
+            is_prerelease: false,
         };
         let b = VsInstance {
             installation_path: PathBuf::from(r"C:\VS\B"),
@@ -593,6 +608,7 @@ mod tests {
             instance_id: "bbbbbbbb".into(),
             display_name: String::new(),
             install_date: String::new(),
+            is_prerelease: false,
         };
 
         // Both input orderings must yield the same pick — the structural

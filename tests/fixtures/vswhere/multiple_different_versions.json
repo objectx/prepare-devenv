@@ -8,10 +8,11 @@
   },
   {
     "instanceId": "bbbbbbbb",
-    "installationVersion": "18.0.0-preview.2",
+    "installationVersion": "18.6.11723.189",
     "installationPath": "C:\\Program Files\\Microsoft Visual Studio\\18\\IntPreview",
     "displayName": "Visual Studio Insider Preview",
-    "installDate": "2025-02-20T09:00:00Z"
+    "installDate": "2025-02-20T09:00:00Z",
+    "isPrerelease": true
   },
   {
     "instanceId": "cccccccc",

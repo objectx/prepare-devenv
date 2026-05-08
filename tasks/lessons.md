@@ -85,3 +85,30 @@ Just present the design, get approval, edit the file, verify.
 Surfaced by: 2026-05-09 brainstorm of release-binary size knobs —
 I started writing a spec doc for a 6-line Cargo.toml change before
 the user pointed at WORKFLOW.md.
+
+## vswhere `installationVersion` is plain numeric — `isPrerelease` is the prerelease signal
+
+vswhere's JSON output carries the prerelease channel marker only in
+`productSemanticVersion` (e.g. `18.6.0-insiders+11723.189`) and in
+the dedicated boolean `isPrerelease`. The `installationVersion`
+field that the v1 picker uses for ordering is plain numeric
+(`18.6.11723.189`) — **even for Insiders/Preview installs**.
+
+So the v1 heuristic "a prerelease is a version with `-` in it"
+silently classifies every install as stable on real machines. On a
+host where the Insiders 18.6 is numerically newer than the stable
+18.5, `--latest` (no flags) picks the Insiders install — the exact
+opposite of the spec's "stable wins over prereleases" rule. On
+synthetic fixtures like `18.0.0-preview.2` the heuristic happens to
+work, which is why all unit tests passed.
+
+**Use the `isPrerelease` boolean from vswhere's JSON.** Add an
+`is_prerelease: bool` field to the install struct (with
+`#[serde(default)]` for older vswhere builds), filter on it in the
+`Latest` selector, and update fixtures to use realistic numeric
+`installationVersion` values plus an explicit `isPrerelease: true`
+on prerelease entries.
+
+Surfaced by: 2026-05-09 user report that `prepare-devenv --emit`
+on a host with stable 18.5 + Insiders 18.6 was emitting the
+Insiders environment.
