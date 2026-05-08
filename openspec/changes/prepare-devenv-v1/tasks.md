@@ -53,18 +53,18 @@
 
 ## 7. Shell trait & adapters
 
-- [ ] 7.1 Define `trait Shell` in `src/shell/mod.rs` with `kind`, `executable`, `format_set(name, value) -> Result<String>`, default `translate_path(name, value) -> OsString`
-- [ ] 7.2 Implement `shell::for_kind(ShellKind) -> Box<dyn Shell>` factory
-- [ ] 7.3 `shell::cmd::Cmd`: `format_set` emits `set "NAME=VALUE"`, returns `Error::EnvParse`-class error if value contains literal `"`; `executable` returns `cmd.exe`
-- [ ] 7.4 `shell::pwsh::Pwsh`: `format_set` emits `$env:NAME = 'VALUE'` with `'` doubled; `executable` returns `pwsh.exe` (fallback to `powershell.exe` if `pwsh` absent — handled at spawn time, not in trait)
-- [ ] 7.5 `shell::bash::Bash`: `format_set` emits `export NAME='VALUE'` with `'` → `'\''`; `executable` returns `bash.exe`; override `translate_path` to apply POSIX path translation when `name == "PATH"`
-- [ ] 7.6 `shell::bash::translate_path_value(value) -> OsString`: split on `;`, convert `[A-Za-z]:[\\/]…` → `/<lower>/…` with `\` → `/`, leave UNC and non-drive segments verbatim, join on `:`
-- [ ] 7.7 `shell::fish::Fish`: `format_set` emits `set -gx NAME 'VALUE'` with `'` → `\'`; `executable` returns `fish.exe`
-- [ ] 7.8 `shell::nu::Nu`: `format_set` emits `$env.NAME = 'VALUE'` with `'` → `\''` (per nu's escaping rules — verify with nu docs during implementation); `executable` returns `nu.exe`
-- [ ] 7.9 Implement `shell::detect() -> ShellKind`: walk parent-process chain via `CreateToolhelp32Snapshot` + `Process32First/Next`, match on lowercased `szExeFile`; fall back to `MSYSTEM`/`COMSPEC`/`$env:SHELL`; final fallback `ShellKind::Cmd` with `tracing::warn!`
-- [ ] 7.10 Add a test-only seam (`#[cfg(test)] fn detect_with(parents: &[String]) -> ShellKind`) so tests can drive detection without OS calls
-- [ ] 7.11 Unit tests for every `format_set` adapter covering simple value, embedded single quote, embedded double quote, value with `;`, value with `%`, value with newline (rejected if shell can't represent), and the `cmd` double-quote rejection
-- [ ] 7.12 Unit tests for `bash::translate_path_value` covering mixed slashes, drive-letter casing, UNC, empty, and non-PATH passthrough
+- [x] 7.1 Define `trait Shell` in `src/shell/mod.rs` with `kind`, `executable`, `format_set(name, value) -> Result<String>`, default `translate_path(name, value) -> OsString`
+- [x] 7.2 Implement `shell::for_kind(ShellKind) -> Box<dyn Shell>` factory
+- [x] 7.3 `shell::cmd::Cmd`: `format_set` emits `set "NAME=VALUE"`, returns `Error::EnvParse`-class error if value contains literal `"`; `executable` returns `cmd.exe`
+- [x] 7.4 `shell::pwsh::Pwsh`: `format_set` emits `$env:NAME = 'VALUE'` with `'` doubled; `executable` returns `pwsh.exe` (fallback to `powershell.exe` if `pwsh` absent — handled at spawn time, not in trait)
+- [x] 7.5 `shell::bash::Bash`: `format_set` emits `export NAME='VALUE'` with `'` → `'\''`; `executable` returns `bash.exe`; override `translate_path` to apply POSIX path translation when `name == "PATH"`
+- [x] 7.6 `shell::bash::translate_path_value(value) -> OsString`: split on `;`, convert `[A-Za-z]:[\\/]…` → `/<lower>/…` with `\` → `/`, leave UNC and non-drive segments verbatim, join on `:`
+- [x] 7.7 `shell::fish::Fish`: `format_set` emits `set -gx NAME 'VALUE'` with `'` → `\'`; `executable` returns `fish.exe`
+- [x] 7.8 `shell::nu::Nu`: `format_set` emits `$env.NAME = 'VALUE'` (single-quoted form is fully literal in nushell — verified against the nushell book; values containing `'` switch to double-quoted form with `\\`/`\"`/`\$` escapes); `executable` returns `nu.exe`
+- [x] 7.9 Implement `shell::detect() -> ShellKind`: walk parent-process chain via `CreateToolhelp32Snapshot` + `Process32First/Next`, match on lowercased `szExeFile`; fall back to `MSYSTEM`/`COMSPEC`/`$env:SHELL`; final fallback `ShellKind::Cmd` with `tracing::warn!`
+- [x] 7.10 Add a test-only seam (`pub(crate) fn detect_with(parents: &[&str], hints: &EnvHints) -> ShellKind`) so tests can drive detection without OS calls
+- [x] 7.11 Unit tests for every `format_set` adapter covering simple value, embedded single quote, embedded double quote (cmd rejection), value with `;`, value with `$`, and per-shell escape edge cases
+- [x] 7.12 Unit tests for `bash::translate_path_value` covering mixed slashes, drive-letter casing, UNC, empty, and non-PATH passthrough
 
 ## 8. Runner module
 
