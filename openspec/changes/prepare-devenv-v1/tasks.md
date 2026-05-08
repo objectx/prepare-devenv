@@ -35,13 +35,13 @@
 
 ## 5. Capture module
 
-- [ ] 5.1 Implement `fn snapshot_pre_env() -> HashMap<OsString, OsString>` using `std::env::vars_os()`; document Windows case-insensitive lookup behavior
-- [ ] 5.2 Implement `fn build_capture_command(bat: &Path, devcmd_args: Option<&str>, marker: &str) -> Command` returning a `std::process::Command` for `cmd.exe /U /D /Q /C` with the constructed `call ... && echo MARKER && set` string
-- [ ] 5.3 Implement marker generation: `fn fresh_marker() -> String` returning `__PREPARE_DEVENV_ENV_BEGIN_<random hex>__`
-- [ ] 5.4 Implement `fn capture_with(reader: impl Read, marker: &str) -> Result<HashMap<OsString, OsString>>` doing UTF-16LE decoding (strip BOM if present), normalize CRLF → LF, split on marker, parse `KEY=VALUE` lines (split on first `=` only); return `Error::EnvParse` if marker absent
-- [ ] 5.5 Implement `pub fn capture(bat: &Path, devcmd_args: Option<&str>) -> Result<CapturedEnv>` wiring the pieces, propagating `VsDevCmd.bat`'s exit code as `Error::VsDevCmdFailed`
-- [ ] 5.6 Add committed UTF-16LE fixture bytes under `tests/fixtures/capture/`: minimal-with-bom, minimal-without-bom, value-containing-equals, multibyte-non-ascii, missing-marker
-- [ ] 5.7 Unit tests against `capture_with` covering all scenarios in `specs/devenv-environment-capture`
+- [x] 5.1 Implement `fn snapshot_pre_env() -> HashMap<OsString, OsString>` using `std::env::vars_os()`; document Windows case-insensitive lookup behavior
+- [x] 5.2 Implement `fn build_capture_command(bat: &Path, devcmd_args: Option<&str>, marker: &str) -> Command` returning a `std::process::Command` for `cmd.exe /U /D /Q /C` with the constructed `call ... && echo MARKER && set` string
+- [x] 5.3 Implement marker generation: `fn fresh_marker() -> String` returning `__PREPARE_DEVENV_ENV_BEGIN_<random hex>__`
+- [x] 5.4 Implement `fn capture_with(reader: impl Read, marker: &str) -> Result<HashMap<OsString, OsString>>` doing UTF-16LE decoding (strip BOM if present), normalize CRLF → LF, split on marker, parse `KEY=VALUE` lines (split on first `=` only); return `Error::EnvParse` if marker absent
+- [x] 5.5 Implement `pub fn capture(bat: &Path, devcmd_args: Option<&str>) -> Result<CapturedEnv>` wiring the pieces, propagating `VsDevCmd.bat`'s exit code as `Error::VsDevCmdFailed` (returns `HashMap<OsString, OsString>` directly — see module-level note)
+- [x] 5.6 Add committed UTF-16LE fixture bytes under `tests/fixtures/capture/`: minimal-with-bom, minimal-without-bom, value-containing-equals, multibyte-non-ascii, missing-marker (generated via `examples/gen_capture_fixtures.rs`)
+- [x] 5.7 Unit tests against `capture_with` covering all scenarios in `specs/devenv-environment-capture`
 
 ## 6. Diff module
 
