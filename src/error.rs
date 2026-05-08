@@ -52,6 +52,11 @@ pub enum Error {
     EnvParse(&'static str),
 
     /// `--shell` was given a value not recognised by `prepare-devenv`.
+    ///
+    /// Currently unused: clap's `ValueEnum` rejects unknown `--shell` values
+    /// at parse time (exit 2). Retained for any future programmatic API
+    /// (e.g., parsing a shell hint from an env var).
+    #[allow(dead_code)]
     #[error("unknown shell '{0}'")]
     UnknownShell(String),
 

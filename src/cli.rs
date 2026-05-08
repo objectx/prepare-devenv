@@ -99,7 +99,6 @@ pub struct Cli {
 /// The mapping from a parsed [`Cli`] is computed by [`Cli::mode`] and is
 /// the single source of truth for "what does this invocation do".
 #[derive(Debug, PartialEq, Eq)]
-#[allow(dead_code)] // wired into main.rs by Task 9
 pub enum Mode {
     /// No `--emit` and no trailing argv: spawn the user's shell with the
     /// merged environment so subsequent commands inherit the VS dev vars.
@@ -118,7 +117,6 @@ impl Cli {
     /// `emit` already prevents both being set together; the ordering
     /// here is defensive).
     #[must_use]
-    #[allow(dead_code)] // wired into main.rs by Task 9
     pub fn mode(&self) -> Mode {
         if !self.command.is_empty() {
             Mode::RunCommand(self.command.clone())

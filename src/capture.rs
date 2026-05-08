@@ -36,8 +36,6 @@
 //! responsibility of consumers (`diff::diff` does it; see Task 6). This module
 //! never lower-cases keys.
 
-#![allow(dead_code)] // wired into main.rs by Task 9
-
 use std::collections::HashMap;
 use std::ffi::OsString;
 use std::io::Read;

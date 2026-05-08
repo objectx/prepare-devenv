@@ -29,8 +29,6 @@
 //! adapter and is shared with `--emit` mode, where the fallback is
 //! irrelevant.
 
-#![allow(dead_code)] // wired into main.rs by Task 9
-
 use std::collections::HashMap;
 use std::ffi::OsString;
 use std::io::{self, ErrorKind, Write};

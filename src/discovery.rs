@@ -15,8 +15,6 @@
 //! against committed JSON fixtures without spawning `vswhere`. The thin
 //! [`resolve`] wrapper wires in the real process spawn for production use.
 
-#![allow(dead_code)] // wired into main.rs by Task 9
-
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -58,6 +56,7 @@ pub enum Selector<'a> {
 pub struct ResolvedInstall {
     pub install_path: PathBuf,
     pub instance_id: String,
+    #[allow(dead_code)] // exposed for future -v / list output; not yet consumed
     pub display_name: String,
     pub version: String,
     pub vsdevcmd_path: PathBuf,

@@ -43,8 +43,6 @@
 //! most one entry per logical name, and that entry uses the post side's
 //! casing. See [`EnvDiff::merged_env`] for the implementation details.
 
-#![allow(dead_code)] // wired into runner.rs by Task 8 and main.rs by Task 9
-
 use std::collections::{BTreeMap, HashMap};
 use std::ffi::OsString;
 

@@ -77,13 +77,13 @@
 
 ## 9. main.rs orchestration
 
-- [ ] 9.1 Initialize `tracing-subscriber` from `Cli::verbose` (off / `info` / `debug`) writing to stderr; configure compact format, no ANSI by default
-- [ ] 9.2 Pipeline call sequence: parse CLI → resolve install → snapshot pre-env → capture → diff → dispatch by `Mode`
-- [ ] 9.3 `Mode::Emit`: call `runner::emit` against `io::stdout().lock()` with the chosen shell adapter
-- [ ] 9.4 `Mode::SpawnShell`: call `runner::spawn_shell`; propagate exit code
-- [ ] 9.5 `Mode::RunCommand(argv)`: call `runner::spawn_command`; propagate exit code
-- [ ] 9.6 Top-level error handling: convert `Error` → exit code per the documented map (3 for discovery, 4 for `VsDevCmdFailed`, 1 for spawn / IO / EnvParse, 0 for success); print `anyhow`-formatted chain to stderr
-- [ ] 9.7 Verify stdout is untouched by anything other than `runner::emit` via an integration test that checks `assert_cmd`'s `stdout()` is empty for every non-emit invocation
+- [x] 9.1 Initialize `tracing-subscriber` from `Cli::verbose` (off / `info` / `debug`) writing to stderr; configure compact format, no ANSI by default
+- [x] 9.2 Pipeline call sequence: parse CLI → resolve install → snapshot pre-env → capture → diff → dispatch by `Mode`
+- [x] 9.3 `Mode::Emit`: call `runner::emit` against `io::stdout().lock()` with the chosen shell adapter
+- [x] 9.4 `Mode::SpawnShell`: call `runner::spawn_shell`; propagate exit code
+- [x] 9.5 `Mode::RunCommand(argv)`: call `runner::spawn_command`; propagate exit code
+- [x] 9.6 Top-level error handling: convert `Error` → exit code per the documented map (3 for discovery, 4 for `VsDevCmdFailed`, 1 for spawn / IO / EnvParse, 0 for success); print error chain to stderr (no `anyhow` needed at this layer; `std::error::Error::source()` walk is sufficient)
+- [ ] 9.7 Verify stdout is untouched by anything other than `runner::emit` via an integration test that checks `assert_cmd`'s `stdout()` is empty for every non-emit invocation (deferred to Task 10)
 
 ## 10. End-to-end CLI tests (test_hooks feature)
 

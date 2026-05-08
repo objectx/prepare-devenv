@@ -20,8 +20,6 @@
 //! hint applies, we fall back to `cmd` and emit a `tracing::warn!` event so
 //! a `-v` run still surfaces what happened.
 
-#![allow(dead_code)] // wired into runner/main by Tasks 8 / 9
-
 use std::ffi::{OsStr, OsString};
 
 pub use crate::cli::ShellKind;
