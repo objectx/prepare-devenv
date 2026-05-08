@@ -1,12 +1,12 @@
 ## 1. Project bootstrap
 
-- [ ] 1.1 Run `cargo init --bin --edition 2024` at repo root; commit the resulting `Cargo.toml`, `src/main.rs` (placeholder), and `.gitignore` updates
-- [ ] 1.2 Add runtime deps to `Cargo.toml`: `clap` (with `derive`), `serde` (with `derive`), `serde_json`, `thiserror`, `anyhow`, `tracing`, `tracing-subscriber` (with `env-filter` + `fmt`), `windows` (selective features for `Win32_System_Diagnostics_ToolHelp` + `Win32_System_Threading`)
-- [ ] 1.3 Add dev-deps: `assert_cmd`, `predicates`, `tempfile`
-- [ ] 1.4 Declare Cargo features in `Cargo.toml`: `test_hooks` (default off, gates the hidden `--devcmd-script` flag), `live` (default off, gates VS-installed integration tests)
-- [ ] 1.5 Add a `[target.'cfg(not(windows))']` build error so non-Windows targets fail at compile time with a clear message
-- [ ] 1.6 Create empty module files: `src/error.rs`, `src/cli.rs`, `src/discovery.rs`, `src/capture.rs`, `src/diff.rs`, `src/runner.rs`, `src/shell/mod.rs`, `src/shell/{cmd,pwsh,bash,fish,nu}.rs`; wire them into `main.rs` with `mod` declarations
-- [ ] 1.7 Add `rustfmt.toml` and `clippy.toml` with project conventions (set `clippy.toml` to fail on `pedantic` lints we care about; keep `rustfmt.toml` minimal — defaults plus `edition = "2024"`)
+- [x] 1.1 Run `cargo init --bin --edition 2024` at repo root; commit the resulting `Cargo.toml`, `src/main.rs` (placeholder), and `.gitignore` updates
+- [x] 1.2 Add runtime deps to `Cargo.toml`: `clap` (with `derive`), `serde` (with `derive`), `serde_json`, `thiserror`, `anyhow`, `tracing`, `tracing-subscriber` (with `env-filter` + `fmt`), `windows` (selective features for `Win32_System_Diagnostics_ToolHelp` + `Win32_System_Threading`)
+- [x] 1.3 Add dev-deps: `assert_cmd`, `predicates`, `tempfile`
+- [x] 1.4 Declare Cargo features in `Cargo.toml`: `test_hooks` (default off, gates the hidden `--devcmd-script` flag), `live` (default off, gates VS-installed integration tests)
+- [x] 1.5 Add a `[target.'cfg(not(windows))']` build error so non-Windows targets fail at compile time with a clear message
+- [x] 1.6 Create empty module files: `src/error.rs`, `src/cli.rs`, `src/discovery.rs`, `src/capture.rs`, `src/diff.rs`, `src/runner.rs`, `src/shell/mod.rs`, `src/shell/{cmd,pwsh,bash,fish,nu}.rs`; wire them into `main.rs` with `mod` declarations
+- [x] 1.7 Add `rustfmt.toml` and `clippy.toml` with project conventions (set `clippy.toml` to fail on `pedantic` lints we care about; keep `rustfmt.toml` minimal — defaults plus `edition = "2024"`)
 
 ## 2. Error type & result alias
 
