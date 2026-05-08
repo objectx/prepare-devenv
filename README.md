@@ -12,13 +12,15 @@
 prepare-devenv [options] [-- command args...]
 ```
 
-|     Option    |                Description                  |
-|:-------------:|:--------------------------------------------|
-| --help        | Show help                                   |
-| -v, --verbose | Be verbose                                  |
-| --id <id>     | Specify the Visual Studio instance ID       |
-| --path <path> | Specify the Visual Studio installation path |
-| --devcmd-args | Argument string for `vsdevcmd.bat`          |
+|       Option       |                Description                                          |
+|:------------------:|:--------------------------------------------------------------------|
+| --help             | Show help                                                            |
+| -v, --verbose      | Be verbose (`-v` info, `-vv` debug; logs go to stderr)               |
+| --id <id>          | Specify the Visual Studio instance ID (prefix match)                 |
+| --path <path>      | Specify the Visual Studio installation path                          |
+| --devcmd-args      | Argument string forwarded verbatim to `VsDevCmd.bat`                 |
+| --emit             | Print shell-specific `set` lines on stdout instead of spawning       |
+| --shell <kind>     | Override auto-detected target shell (`cmd`, `pwsh`, `bash`, `fish`, `nu`) |
 
 ## Examples
 ```bash
@@ -31,6 +33,33 @@ prepare-devenv --path "C:\Program Files\Microsoft Visual Studio\18" -- bash
 # Same as above but using the instance ID.
 prepare-devenv --id d0b481ec -- bash # With Visual Studio 2026 Insiders.
 ```
+
+### `--emit` mode
+
+When you want the VS environment merged into the *current* shell (rather
+than a child process), use `--emit` to print eval-able `set` lines and
+pipe them into the shell. From PowerShell:
+
+```pwsh
+prepare-devenv --emit | iex
+```
+
+`--emit` auto-detects the surrounding shell; pass `--shell <kind>` to
+override (e.g. when piping the output to a script for a different shell).
+
+### `--shell` override
+
+`prepare-devenv` walks the parent-process chain to detect the calling
+shell. Pass `--shell cmd|pwsh|bash|fish|nu` to override the detection —
+useful when piping output through an intermediate process whose ancestry
+hides the real target shell.
+
+### Verbose output
+
+Diagnostics are written to stderr so they don't pollute the eval-able
+stdout of `--emit`. `-v` enables `info` logs (e.g. detected shell,
+resolved VS install, env counts); `-vv` adds `debug` (e.g. merged-env
+sizes, capture marker values).
 
 ## Building from source
 

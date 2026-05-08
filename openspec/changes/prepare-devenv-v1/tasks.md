@@ -108,6 +108,6 @@
 
 ## 13. Documentation polish
 
-- [ ] 13.1 Update `README.md` with a short "Building from source" section (`cargo build --release`) and confirm the existing usage examples match the implemented CLI
-- [ ] 13.2 Update root `CLAUDE.md` "Project status" to reflect that v1 is implemented, replacing the greenfield-language-pick instruction; add the actual build/test/lint commands
-- [ ] 13.3 Smoke-checklist (`README.md` or `docs/SMOKE.md`): `prepare-devenv -- where cl.exe`, `prepare-devenv --emit | iex` from pwsh, `prepare-devenv` from each supported shell, `prepare-devenv --id <bogus>` exits 3 with candidates listed at `-v`, `prepare-devenv --devcmd-args="-arch=arm64"` succeeds with `cl.exe -?` reporting arm64
+- [x] 13.1 Update `README.md` with a short "Building from source" section (`cargo build --release`) and confirm the existing usage examples match the implemented CLI
+- [x] 13.2 Update root `CLAUDE.md` "Project status" to reflect that v1 is implemented, replacing the greenfield-language-pick instruction; add the actual build/test/lint commands
+- [x] 13.3 Smoke-checklist (`README.md` or `docs/SMOKE.md`): `prepare-devenv -- where cl.exe`, `prepare-devenv --emit | iex` from pwsh, `prepare-devenv` from each supported shell, `prepare-devenv --id <bogus>` exits 3 with candidates listed at `-v`, `prepare-devenv --devcmd-args="-arch=arm64"` succeeds with `cl.exe -?` reporting arm64

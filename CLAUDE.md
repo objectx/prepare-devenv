@@ -4,7 +4,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-Greenfield. The repository currently contains only [README.md](README.md) describing the intended tool — no source code, build system, tests, or language choice has been committed yet. When implementing, ask the user for the language/toolchain rather than assuming, then update this file with the resulting build/test/lint commands.
+v1 implemented (Rust 2024 edition, Windows-only). Single binary `prepare-devenv.exe`. Source layout under `src/`: `main.rs` (orchestration), `cli.rs` (clap-derive), `discovery.rs` (vswhere lookup), `capture.rs` (`cmd /U` pipeline), `diff.rs` (env delta), `shell/{cmd,pwsh,bash,fish,nu}.rs` (per-shell adapters), `runner.rs` (output dispatch), `error.rs` (`thiserror`-based `Error`/`Result`).
+
+Build/test/lint:
+
+```pwsh
+cargo build [--release]
+cargo test                          # unit + fixture-driven (no VS required)
+cargo test --features test_hooks    # adds e2e CLI suite via fake .bat
+cargo test --features live          # requires installed VS
+cargo fmt -- --check
+cargo clippy --all-targets -- -D warnings
+cargo clippy --all-targets --features test_hooks -- -D warnings
+```
+
+Cargo features: `test_hooks` (gates the hidden `--devcmd-script` flag for e2e tests), `live` (gates VS-installed integration tests). Both default off.
 
 ## What `prepare-devenv` does
 
