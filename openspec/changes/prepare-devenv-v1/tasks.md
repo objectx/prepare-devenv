@@ -24,14 +24,14 @@
 
 ## 4. Discovery module
 
-- [ ] 4.1 Implement `fn locate_vswhere() -> Result<PathBuf>`: probe `%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe`, then fall back to a `%PATH%` search (`which`-style); return `Error::VsWhereMissing` with both probed locations on failure
-- [ ] 4.2 Define `struct VsInstance` with `serde::Deserialize`: required fields `installationPath`, `installationVersion`, `instanceId`; `#[serde(default)]` for `displayName` and `installDate`
-- [ ] 4.3 Implement `fn run_vswhere(vswhere: &Path) -> Result<Vec<VsInstance>>`: spawn `vswhere -format json -all -prerelease -products *`, capture stdout, deserialize; surface non-zero exit as `Error::VsWhereFailed` with stderr
-- [ ] 4.4 Implement `fn resolve_with(selector, fetch_json: F) -> Result<ResolvedInstall>` where `F: FnOnce() -> Result<Vec<VsInstance>>`; apply the precedence rule from the spec (`--path` exact case-insensitive → `--id` prefix → latest by version with `installDate` desc tie-break)
-- [ ] 4.5 Implement `pub fn resolve(selector) -> Result<ResolvedInstall>` as a one-line delegate over `resolve_with` + `run_vswhere`
-- [ ] 4.6 Compute `vsdevcmd_path = install_path.join("Common7").join("Tools").join("VsDevCmd.bat")`; verify existence and surface `Error::VsDevCmdMissing` when absent
-- [ ] 4.7 Add fixture JSON files under `tests/fixtures/vswhere/` for: single install, multiple installs same version, multiple installs different versions, ambiguous-prefix, empty array
-- [ ] 4.8 Unit tests against `resolve_with` covering all scenarios in `specs/vs-installation-discovery`
+- [x] 4.1 Implement `fn locate_vswhere() -> Result<PathBuf>`: probe `%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe`, then fall back to a `%PATH%` search (`which`-style); return `Error::VsWhereMissing` with both probed locations on failure
+- [x] 4.2 Define `struct VsInstance` with `serde::Deserialize`: required fields `installationPath`, `installationVersion`, `instanceId`; `#[serde(default)]` for `displayName` and `installDate`
+- [x] 4.3 Implement `fn run_vswhere(vswhere: &Path) -> Result<Vec<VsInstance>>`: spawn `vswhere -format json -all -prerelease -products *`, capture stdout, deserialize; surface non-zero exit as `Error::VsWhereFailed` with stderr
+- [x] 4.4 Implement `fn resolve_with(selector, fetch_json: F) -> Result<ResolvedInstall>` where `F: FnOnce() -> Result<Vec<VsInstance>>`; apply the precedence rule from the spec (`--path` exact case-insensitive → `--id` prefix → latest by version with `installDate` desc tie-break)
+- [x] 4.5 Implement `pub fn resolve(selector) -> Result<ResolvedInstall>` as a one-line delegate over `resolve_with` + `run_vswhere`
+- [x] 4.6 Compute `vsdevcmd_path = install_path.join("Common7").join("Tools").join("VsDevCmd.bat")`; verify existence and surface `Error::VsDevCmdMissing` when absent
+- [x] 4.7 Add fixture JSON files under `tests/fixtures/vswhere/` for: single install, multiple installs same version, multiple installs different versions, ambiguous-prefix, empty array
+- [x] 4.8 Unit tests against `resolve_with` covering all scenarios in `specs/vs-installation-discovery`
 
 ## 5. Capture module
 

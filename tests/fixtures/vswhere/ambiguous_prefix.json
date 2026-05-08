@@ -1,0 +1,16 @@
+[
+  {
+    "instanceId": "ab12cd34",
+    "installationVersion": "17.10.1",
+    "installationPath": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community",
+    "displayName": "Visual Studio Community 2022",
+    "installDate": "2024-01-15T08:00:00Z"
+  },
+  {
+    "instanceId": "ab12ef56",
+    "installationVersion": "17.10.1",
+    "installationPath": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Professional",
+    "displayName": "Visual Studio Professional 2022",
+    "installDate": "2024-09-22T14:30:00Z"
+  }
+]

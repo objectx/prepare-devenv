@@ -1,0 +1,23 @@
+[
+  {
+    "instanceId": "aaaaaaaa",
+    "installationVersion": "17.8.4",
+    "installationPath": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community-17.8",
+    "displayName": "Visual Studio Community 2022 (17.8)",
+    "installDate": "2024-03-10T10:00:00Z"
+  },
+  {
+    "instanceId": "bbbbbbbb",
+    "installationVersion": "18.0.0-preview.2",
+    "installationPath": "C:\\Program Files\\Microsoft Visual Studio\\18\\IntPreview",
+    "displayName": "Visual Studio Insider Preview",
+    "installDate": "2025-02-20T09:00:00Z"
+  },
+  {
+    "instanceId": "cccccccc",
+    "installationVersion": "17.10.1",
+    "installationPath": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Professional",
+    "displayName": "Visual Studio Professional 2022",
+    "installDate": "2024-09-22T14:30:00Z"
+  }
+]
