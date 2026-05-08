@@ -376,6 +376,31 @@ mod tests {
     }
 
     #[test]
+    fn capture_with_handles_marker_followed_by_trailing_whitespace() {
+        use std::io::Cursor;
+
+        // Build UTF-16LE bytes for: BOM + "MARKER \r\nFOO=bar\r\n"
+        // (note the trailing space after MARKER, simulating cmd's `echo X && set` output).
+        let marker = "__TEST_MARKER__";
+        let mut s = String::new();
+        s.push_str(marker);
+        s.push(' '); // trailing space — cmd's echo behavior
+        s.push_str("\r\n");
+        s.push_str("FOO=bar\r\n");
+
+        let mut bytes = vec![0xFF, 0xFE]; // UTF-16LE BOM
+        for unit in s.encode_utf16() {
+            bytes.extend_from_slice(&unit.to_le_bytes());
+        }
+
+        let env = capture_with(Cursor::new(&bytes), marker).unwrap();
+        assert_eq!(
+            env.get(std::ffi::OsStr::new("FOO")),
+            Some(&std::ffi::OsString::from("bar"))
+        );
+    }
+
+    #[test]
     fn snapshot_pre_env_includes_path() {
         // Every Windows process has a PATH variable. Lookup is
         // case-insensitive on Windows but our snapshot preserves the writer's

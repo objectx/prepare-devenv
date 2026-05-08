@@ -63,3 +63,36 @@ fn run_command_mode_with_v_flag_keeps_stdout_clean() {
         String::from_utf8_lossy(&output.stdout)
     );
 }
+
+#[test]
+fn emit_with_v_flag_keeps_stdout_to_format_lines_only() {
+    let output = assert_cmd::Command::cargo_bin("prepare-devenv")
+        .unwrap()
+        .args([
+            "-v",
+            "--emit",
+            "--shell",
+            "bash",
+            "--devcmd-script",
+            "tests/fixtures/devcmd-script/fake.bat",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "binary exited with {:?}\nstderr: {}",
+        output.status,
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    // stdout should ONLY contain emit format lines (the bash fixture).
+    // -v adds info lines to stderr, never stdout.
+    let expected = std::fs::read("tests/fixtures/emit/bash.txt").unwrap();
+    assert_eq!(output.stdout, expected, "stdout contains diagnostics");
+
+    // stderr should NOT be empty under -v (info-level logs go there).
+    assert!(
+        !output.stderr.is_empty(),
+        "expected info-level diagnostics on stderr under -v"
+    );
+}
