@@ -1,0 +1,3 @@
+export FAKE_INCLUDE='C:\fake\include'
+export FAKE_LIB='C:\fake\lib'
+export FAKE_VCINSTALLDIR='C:\fake\vc'

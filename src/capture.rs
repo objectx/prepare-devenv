@@ -110,6 +110,8 @@ fn fresh_marker() -> String {
 /// quote, so a trailing-backslash path before the closing `"` would break
 /// parsing.
 fn build_capture_command(bat: &Path, devcmd_args: Option<&str>, marker: &str) -> Command {
+    use std::os::windows::process::CommandExt;
+
     let inner = format!(
         "call \"{}\" {} 1>&2 && echo {} && set",
         bat.display(),
@@ -117,7 +119,18 @@ fn build_capture_command(bat: &Path, devcmd_args: Option<&str>, marker: &str) ->
         marker
     );
     let mut cmd = Command::new("cmd.exe");
-    cmd.arg("/U").arg("/D").arg("/Q").arg("/C").arg(inner);
+    // Use raw_arg for the inner script: Rust's default arg-escaping wraps
+    // values containing spaces in `"..."` and rewrites embedded `"` as `\"`,
+    // but cmd.exe does NOT understand `\"` — it would parse the resulting
+    // command line as a broken path. raw_arg passes the string through to
+    // CreateProcess verbatim, letting cmd's own `/C "..."` parser see the
+    // intended quoting. The `/U /D /Q /C` flags themselves contain neither
+    // spaces nor quotes, so we keep `arg()` for them.
+    cmd.arg("/U")
+        .arg("/D")
+        .arg("/Q")
+        .arg("/C")
+        .raw_arg(format!("\"{inner}\""));
     cmd
 }
 
@@ -172,7 +185,12 @@ pub fn capture_with(mut reader: impl Read, marker: &str) -> Result<HashMap<OsStr
     let mut lines = text.lines();
     let mut found = false;
     for line in lines.by_ref() {
-        if line == marker {
+        // cmd.exe's `echo X && set` echoes `X ` with a trailing space (the
+        // space between `echo X` and `&&` is part of echo's argument), so
+        // the marker line we wrote with `echo {marker} && set` arrives as
+        // `{marker} `. Trim trailing whitespace before the equality check
+        // so that quirk doesn't make us miss our own sentinel.
+        if line.trim_end() == marker {
             found = true;
             break;
         }
@@ -325,10 +343,12 @@ mod tests {
         assert_eq!(args[1], std::ffi::OsStr::new("/D"));
         assert_eq!(args[2], std::ffi::OsStr::new("/Q"));
         assert_eq!(args[3], std::ffi::OsStr::new("/C"));
-        // The 5th arg is the inner script — `1>&2` keeps VsDevCmd.bat's
+        // The 5th arg is the inner script wrapped in literal quotes — we
+        // use `raw_arg` so cmd.exe's `/C "..."` parser sees the embedded
+        // quotes around the bat path verbatim. `1>&2` keeps VsDevCmd.bat's
         // own chatter off our stdout, the marker is emitted on its own line,
         // and `set` follows. devcmd_args=None expands to an empty string.
-        let expected_script = r#"call "C:\bat.bat"  1>&2 && echo MARK && set"#;
+        let expected_script = r#""call "C:\bat.bat"  1>&2 && echo MARK && set""#;
         assert_eq!(args[4], std::ffi::OsStr::new(expected_script));
     }
 
@@ -339,7 +359,7 @@ mod tests {
         let bat = Path::new(r"C:\bat.bat");
         let cmd = build_capture_command(bat, Some("-arch=x64"), "MARK");
         let args: Vec<&std::ffi::OsStr> = cmd.get_args().collect();
-        let expected_script = r#"call "C:\bat.bat" -arch=x64 1>&2 && echo MARK && set"#;
+        let expected_script = r#""call "C:\bat.bat" -arch=x64 1>&2 && echo MARK && set""#;
         assert_eq!(args[4], std::ffi::OsStr::new(expected_script));
     }
 

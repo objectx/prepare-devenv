@@ -1,0 +1,3 @@
+set -gx FAKE_INCLUDE 'C:\\fake\\include'
+set -gx FAKE_LIB 'C:\\fake\\lib'
+set -gx FAKE_VCINSTALLDIR 'C:\\fake\\vc'

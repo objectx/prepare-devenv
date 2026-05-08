@@ -1,0 +1,3 @@
+set "FAKE_INCLUDE=C:\fake\include"
+set "FAKE_LIB=C:\fake\lib"
+set "FAKE_VCINSTALLDIR=C:\fake\vc"

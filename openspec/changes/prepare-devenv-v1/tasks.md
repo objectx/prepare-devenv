@@ -72,8 +72,8 @@
 - [x] 8.2 Implement `pub fn spawn_shell(diff: &EnvDiff, base: &HashMap<OsString, OsString>, shell: &dyn Shell) -> Result<i32>`: build merged env (apply `translate_path` per var), spawn `shell.executable()` with `Stdio::inherit()` for stdin/stdout/stderr, wait, return exit code; surface `Error::Spawn` on failure-to-start
 - [x] 8.3 Implement `pub fn spawn_command(diff: &EnvDiff, base: &HashMap<OsString, OsString>, argv: &[OsString]) -> Result<i32>`: build merged env without per-shell `translate_path`, spawn `argv[0]` with the rest of `argv` and `Stdio::inherit()`, wait, return exit code
 - [x] 8.4 Decide pwsh fallback in `spawn_shell` when `pwsh.exe` is absent on PATH (try `powershell.exe`); document and test
-- [ ] 8.5 Integration test (under `tests/`) using the `test_hooks` feature + a fake `.bat` to drive `runner::emit` end-to-end for each shell and diff stdout against a committed expected-output fixture
-- [ ] 8.6 Integration test for `runner::spawn_command` using the `test_hooks` feature to launch `cmd /c set` and assert the spawned process sees the diffed vars
+- [x] 8.5 Integration test (under `tests/`) using the `test_hooks` feature + a fake `.bat` to drive `runner::emit` end-to-end for each shell and diff stdout against a committed expected-output fixture
+- [x] 8.6 Integration test for `runner::spawn_command` using the `test_hooks` feature to launch `cmd /c set` and assert the spawned process sees the diffed vars
 
 ## 9. main.rs orchestration
 
@@ -87,11 +87,11 @@
 
 ## 10. End-to-end CLI tests (test_hooks feature)
 
-- [ ] 10.1 Add `tests/cli_emit.rs` running the binary via `assert_cmd` with `--devcmd-script <fake.bat>` for each of `cmd`, `pwsh`, `bash`, `fish`, `nu`; assert stdout matches the per-shell expected fixture
-- [ ] 10.2 Add `tests/cli_spawn_command.rs` invoking `prepare-devenv -- cmd /c set` against the fake bat, asserting the dumped env contains the diffed vars
-- [ ] 10.3 Add `tests/cli_exit_codes.rs` covering the 0/1/2/3/4/N matrix
-- [ ] 10.4 Add `tests/cli_stdout_clean.rs` asserting stdout is empty for non-emit modes (with and without `-v`)
-- [ ] 10.5 Add `tests/fixtures/devcmd-script/fake.bat` that emits a known set of env vars, plus per-shell expected-output fixtures under `tests/fixtures/emit/<shell>.txt`
+- [x] 10.1 Add `tests/cli_emit.rs` running the binary via `assert_cmd` with `--devcmd-script <fake.bat>` for each of `cmd`, `pwsh`, `bash`, `fish`, `nu`; assert stdout matches the per-shell expected fixture
+- [x] 10.2 Add `tests/cli_spawn_command.rs` invoking `prepare-devenv -- cmd /c set` against the fake bat, asserting the dumped env contains the diffed vars
+- [x] 10.3 Add `tests/cli_exit_codes.rs` covering the 0/1/2/3/4/N matrix (exit-3 deferred — see file-level docs; needs live `vswhere` to reach the discovery path while the `test_hooks` branch bypasses it)
+- [x] 10.4 Add `tests/cli_stdout_clean.rs` asserting stdout is empty for non-emit modes (with and without `-v`)
+- [x] 10.5 Add `tests/fixtures/devcmd-script/fake.bat` that emits a known set of env vars, plus per-shell expected-output fixtures under `tests/fixtures/emit/<shell>.txt`
 
 ## 11. Live tests (live feature)
 

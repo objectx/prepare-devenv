@@ -1,0 +1,3 @@
+$env:FAKE_INCLUDE = 'C:\fake\include'
+$env:FAKE_LIB = 'C:\fake\lib'
+$env:FAKE_VCINSTALLDIR = 'C:\fake\vc'
