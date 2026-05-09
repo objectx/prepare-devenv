@@ -265,16 +265,19 @@ fn pick<'a>(installs: &'a [VsInstance], selector: Selector<'_>) -> Result<&'a Vs
 
 /// Parse a vswhere version string into a `Vec<u64>` for numeric comparison.
 ///
-/// vswhere emits dotted-numeric versions (e.g. `17.10.1`) but prereleases may
-/// suffix a `-tag.N` segment (e.g. `18.0.0-preview.2`). We treat the
-/// prerelease suffix as if it weren't there: strip everything from the first
-/// `-` onward, then split on `.` and parse each segment as `u64`. Non-numeric
-/// segments (which shouldn't occur in vswhere output but might in the wild)
-/// evaluate to `0` via the leading-digits prefix. Lexicographic `Vec<u64>`
-/// ordering then yields semver-style ordering for the inputs we care about,
-/// with prereleases of version `X` ordering equal to release `X` — close
-/// enough for "pick the latest install" tiebreaks where `installDate` is the
-/// real disambiguator.
+/// In practice vswhere's `installationVersion` is plain dotted-numeric
+/// (e.g. `17.10.1`, `18.6.11723.189`) — prereleases are flagged via the
+/// separate `isPrerelease` boolean, NOT via a version-string suffix. The
+/// `-tag.N` stripping below is defensive: it keeps this helper total against
+/// inputs that DO carry a semver-style suffix (older vswhere builds, hand-
+/// crafted test data, or `productSemanticVersion` if a future caller passes
+/// it in by mistake), so a stray `-` never panics the numeric parse. We
+/// strip everything from the first `-` onward, split on `.`, and parse each
+/// segment as `u64`. Non-numeric segments evaluate to `0` via the leading-
+/// digits prefix. Lexicographic `Vec<u64>` ordering then yields semver-style
+/// ordering for the inputs we care about, with prereleases of version `X`
+/// ordering equal to release `X` — `installDate` is the real disambiguator
+/// for "pick the latest install" tiebreaks.
 fn parse_version_numeric(v: &str) -> Vec<u64> {
     let core = v.split_once('-').map_or(v, |(lhs, _)| lhs);
     core.split('.')
@@ -518,13 +521,16 @@ mod tests {
     #[test]
     fn latest_picks_highest_stable_version_skipping_prereleases() {
         // Fixture has three installs:
-        //   - aaaaaaaa : 17.8.4              (stable)
-        //   - bbbbbbbb : 18.0.0-preview.2    (PRERELEASE)
-        //   - cccccccc : 17.10.1             (stable)
+        //   - aaaaaaaa : 17.8.4         (stable)
+        //   - bbbbbbbb : 18.6.11723.189 (PRERELEASE — isPrerelease: true)
+        //   - cccccccc : 17.10.1        (stable)
         //
         // Latest must (a) compare versions numerically (so 17.10.1 > 17.8.4,
         // not the lexical "17.8.4" > "17.10.1"), AND (b) skip the prerelease
-        // 18.x. Net result: cccccccc wins.
+        // 18.6 even though it's numerically higher than every stable install
+        // — the regression case where the v1 `-` heuristic silently failed
+        // because real vswhere `installationVersion` carries no `-preview`
+        // suffix. Net result: cccccccc wins.
         let installs = load(MULTIPLE_DIFFERENT_VERSIONS);
         let chosen = pick(&installs, Selector::Latest).unwrap();
         assert_eq!(chosen.instance_id, "cccccccc");

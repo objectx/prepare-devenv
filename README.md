@@ -24,15 +24,28 @@ prepare-devenv [options] [-- command args...]
 
 ## Examples
 ```bash
-# Start current shell with detected environment (using the latest installed Visual Studio).
+# Start current shell with detected environment (using the latest installed STABLE Visual Studio).
 prepare-devenv
-# Run supplied command with detected environment (using the latest installed Visual Studio).
+# Run supplied command with detected environment (using the latest installed STABLE Visual Studio).
 prepare-devenv -- bash
 # Run supplied command using the specified Visual Studio environment.
 prepare-devenv --path "C:\Program Files\Microsoft Visual Studio\18" -- bash
-# Same as above but using the instance ID.
+# Same as above but using the instance ID — also how you opt into an Insiders / Preview install,
+# which the default selector deliberately skips.
 prepare-devenv --id d0b481ec -- bash # With Visual Studio 2026 Insiders.
 ```
+
+### Install selection
+
+With no `--id` / `--path`, `prepare-devenv` picks the **latest stable**
+Visual Studio install on the host (numeric `installationVersion` compare,
+`installDate` descending as a tie-break). Insiders / Preview installs
+(those marked `isPrerelease: true` by `vswhere`) are excluded from this
+auto-selection regardless of how new their version number looks — the
+intent is "the VS you'd reach for by default", not "the highest version
+on disk". Use `--id <prefix>` or `--path <dir>` to explicitly target a
+prerelease. If the host has *only* prerelease installs, the selector
+falls back to the highest prerelease and emits a `-v` warning.
 
 ### `--emit` mode
 
